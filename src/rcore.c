@@ -93,7 +93,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2021 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2013-2022 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -159,6 +159,23 @@
     #undef _POSIX_C_SOURCE
     #define _POSIX_C_SOURCE 199309L // Required for: CLOCK_MONOTONIC if compiled with c99 without gnu ext.
 #endif
+
+// Platform specific defines to handle GetApplicationDirectory()
+#if defined (PLATFORM_DESKTOP)
+    #if defined(_WIN32)
+        #ifndef MAX_PATH
+            #define MAX_PATH 1025
+        #endif
+    __declspec(dllimport) unsigned long __stdcall GetModuleFileNameA(void *hModule, void *lpFilename, unsigned long nSize);
+    __declspec(dllimport) unsigned long __stdcall GetModuleFileNameW(void *hModule, void *lpFilename, unsigned long nSize);
+    __declspec(dllimport) int __stdcall WideCharToMultiByte(unsigned int cp, unsigned long flags, void *widestr, int cchwide, void *str, int cbmb, void *defchar, int *used_default);
+    #elif defined(__linux__)
+        #include <unistd.h>
+    #elif defined(__APPLE__)
+        #include <sys/syslimits.h>
+        #include <mach-o/dyld.h>
+    #endif // OSs
+#endif // PLATFORM_DESKTOP
 
 #include <stdlib.h>                 // Required for: srand(), rand(), atexit()
 #include <stdio.h>                  // Required for: sprintf() [Used in OpenURL()]
@@ -628,11 +645,13 @@ static int32_t AndroidInputCallback(struct android_app *app, AInputEvent *event)
 #endif
 
 #if defined(PLATFORM_WEB)
+static EM_BOOL EmscriptenFullscreenChangeCallback(int eventType, const EmscriptenFullscreenChangeEvent *event, void *userData);
+static EM_BOOL EmscriptenWindowResizedCallback(int eventType, const EmscriptenUiEvent *event, void *userData);
+static EM_BOOL EmscriptenResizeCallback(int eventType, const EmscriptenUiEvent *event, void *userData);
+
 static EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData);
 static EM_BOOL EmscriptenTouchCallback(int eventType, const EmscriptenTouchEvent *touchEvent, void *userData);
 static EM_BOOL EmscriptenGamepadCallback(int eventType, const EmscriptenGamepadEvent *gamepadEvent, void *userData);
-static EM_BOOL EmscriptenResizeCallback(int eventType, const EmscriptenUiEvent *e, void *userData);
-
 #endif
 
 #if defined(PLATFORM_RPI) || defined(PLATFORM_DRM)
@@ -703,7 +722,7 @@ struct android_app *GetAndroidApp(void)
 void InitWindow(int width, int height, const char *title)
 {
     TRACELOG(LOG_INFO, "Initializing raylib %s", RAYLIB_VERSION);
-    
+
     TRACELOG(LOG_INFO, "Supported raylib modules:");
     TRACELOG(LOG_INFO, "    > rcore:..... loaded (mandatory)");
     TRACELOG(LOG_INFO, "    > rlgl:...... loaded (mandatory)");
@@ -712,12 +731,12 @@ void InitWindow(int width, int height, const char *title)
 #else
     TRACELOG(LOG_INFO, "    > rshapes:... not loaded (optional)");
 #endif
-#if defined(SUPPORT_MODULE_RTEXTURES) 
+#if defined(SUPPORT_MODULE_RTEXTURES)
     TRACELOG(LOG_INFO, "    > rtextures:. loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > rtextures:. not loaded (optional)");
-#endif  
-#if defined(SUPPORT_MODULE_RTEXT) 
+#endif
+#if defined(SUPPORT_MODULE_RTEXT)
     TRACELOG(LOG_INFO, "    > rtext:..... loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > rtext:..... not loaded (optional)");
@@ -727,7 +746,7 @@ void InitWindow(int width, int height, const char *title)
 #else
     TRACELOG(LOG_INFO, "    > rmodels:... not loaded (optional)");
 #endif
-#if defined(SUPPORT_MODULE_RAUDIO) 
+#if defined(SUPPORT_MODULE_RAUDIO)
     TRACELOG(LOG_INFO, "    > raudio:.... loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > raudio:.... not loaded (optional)");
@@ -861,13 +880,18 @@ void InitWindow(int width, int height, const char *title)
 #endif
 
 #if defined(PLATFORM_WEB)
+    // Setup callback funtions for the DOM events
+    emscripten_set_fullscreenchange_callback("#canvas", NULL, 1, EmscriptenFullscreenChangeCallback);
+
+    // WARNING: Below resize code was breaking fullscreen mode for sample games and examples, it needs review
     // Check fullscreen change events(note this is done on the window since most browsers don't support this on #canvas)
     //emscripten_set_fullscreenchange_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback);
     // Check Resize event (note this is done on the window since most browsers don't support this on #canvas)
-    emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback);
+    //emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback);
     // Trigger this once to get initial window sizing
-    EmscriptenResizeCallback(EMSCRIPTEN_EVENT_RESIZE, NULL, NULL);
-    // Support keyboard events
+    //EmscriptenResizeCallback(EMSCRIPTEN_EVENT_RESIZE, NULL, NULL);
+
+    // Support keyboard events -> Not used, GLFW.JS takes care of that
     //emscripten_set_keypress_callback("#canvas", NULL, 1, EmscriptenKeyboardCallback);
     //emscripten_set_keydown_callback("#canvas", NULL, 1, EmscriptenKeyboardCallback);
 
@@ -1193,6 +1217,7 @@ void ToggleFullscreen(void)
     if (CORE.Window.flags & FLAG_VSYNC_HINT) glfwSwapInterval(1);
 #endif
 #if defined(PLATFORM_WEB)
+/*
     EM_ASM
     (
         // This strategy works well while using raylib minimal web shell for emscripten,
@@ -1200,14 +1225,17 @@ void ToggleFullscreen(void)
         // is a good strategy but maybe games prefer to keep current canvas resolution and
         // display it in fullscreen, adjusting monitor resolution if possible
         if (document.fullscreenElement) document.exitFullscreen();
-        else Module.requestFullscreen(false, true);
+        else Module.requestFullscreen(true, true); //false, true);
     );
-
+*/
+    //EM_ASM(Module.requestFullscreen(false, false););
 /*
     if (!CORE.Window.fullscreen)
     {
         // Option 1: Request fullscreen for the canvas element
-        // This option does not seem to work at all
+        // This option does not seem to work at all:
+        // emscripten_request_pointerlock() and emscripten_request_fullscreen() are affected by web security,
+        // the user must click once on the canvas to hide the pointer or transition to full screen
         //emscripten_request_fullscreen("#canvas", false);
 
         // Option 2: Request fullscreen for the canvas element with strategy
@@ -1236,20 +1264,25 @@ void ToggleFullscreen(void)
         int width, height;
         emscripten_get_canvas_element_size("#canvas", &width, &height);
         TRACELOG(LOG_WARNING, "Emscripten: Enter fullscreen: Canvas size: %i x %i", width, height);
+
+        CORE.Window.fullscreen = true;          // Toggle fullscreen flag
+        CORE.Window.flags |= FLAG_FULLSCREEN_MODE;
     }
     else
     {
         //emscripten_exit_fullscreen();
-        emscripten_exit_soft_fullscreen();
+        //emscripten_exit_soft_fullscreen();
 
         int width, height;
         emscripten_get_canvas_element_size("#canvas", &width, &height);
         TRACELOG(LOG_WARNING, "Emscripten: Exit fullscreen: Canvas size: %i x %i", width, height);
+
+        CORE.Window.fullscreen = false;          // Toggle fullscreen flag
+        CORE.Window.flags &= ~FLAG_FULLSCREEN_MODE;
     }
 */
 
     CORE.Window.fullscreen = !CORE.Window.fullscreen;          // Toggle fullscreen flag
-    CORE.Window.flags ^= FLAG_FULLSCREEN_MODE;
 #endif
 #if defined(PLATFORM_ANDROID) || defined(PLATFORM_RPI) || defined(PLATFORM_DRM)
     TRACELOG(LOG_WARNING, "SYSTEM: Failed to toggle to windowed mode");
@@ -1566,12 +1599,15 @@ void SetWindowSize(int width, int height)
 #if defined(PLATFORM_DESKTOP) || defined(PLATFORM_WEB)
     glfwSetWindowSize(CORE.Window.handle, width, height);
 #endif
-#if defined(PLATFORM_WEB)
-    //emscripten_set_canvas_size(width, height);  // DEPRECATED!
+}
 
-    // TODO: Below functions should be used to replace previous one but they do not seem to work properly
-    //emscripten_set_canvas_element_size("canvas", width, height);
-    //emscripten_set_element_css_size("canvas", width, height);
+// Set window opacity, value opacity is between 0.0 and 1.0
+void SetWindowOpacity(float opacity)
+{
+#if defined(PLATFORM_DESKTOP)
+    if (opacity >= 1.0f) opacity = 1.0f;
+    else if (opacity <= 0.0f) opacity = 0.0f;
+    glfwSetWindowOpacity(CORE.Window.handle, opacity);
 #endif
 }
 
@@ -1867,9 +1903,11 @@ const char *GetClipboardText(void)
 {
 #if defined(PLATFORM_DESKTOP)
     return glfwGetClipboardString(CORE.Window.handle);
-#else
-    return NULL;
 #endif
+#if defined(PLATFORM_WEB)
+    return emscripten_run_script_string("navigator.clipboard.readText()");
+#endif
+    return NULL;
 }
 
 // Set clipboard text content
@@ -1877,6 +1915,9 @@ void SetClipboardText(const char *text)
 {
 #if defined(PLATFORM_DESKTOP)
     glfwSetClipboardString(CORE.Window.handle, text);
+#endif
+#if defined(PLATFORM_WEB)
+    emscripten_run_script(TextFormat("navigator.clipboard.writeText('%s')", text));
 #endif
 }
 
@@ -2714,7 +2755,7 @@ void TakeScreenshot(const char *fileName)
 
     char path[2048] = { 0 };
     strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, fileName));
-    
+
     ExportImage(image, path);           // WARNING: Module required: rtextures
     RL_FREE(imgData);
 
@@ -2762,7 +2803,7 @@ bool FileExists(const char *fileName)
 
     // NOTE: Alternatively, stat() can be used instead of access()
     //#include <sys/stat.h>
-    //struct stat statbuf;   
+    //struct stat statbuf;
     //if (stat(filename, &statbuf) == 0) result = true;
 
     return result;
@@ -2813,6 +2854,24 @@ bool DirectoryExists(const char *dirPath)
     }
 
     return result;
+}
+
+// Get file length in bytes
+// NOTE: GetFileSize() conflicts with windows.h
+int GetFileLength(const char *fileName)
+{
+    int size = 0;
+
+    FILE *file = fopen(fileName, "rb");
+
+    if (file != NULL)
+    {
+        fseek(file, 0L, SEEK_END);
+        size = (int)ftell(file);
+        fclose(file);
+    }
+
+    return size;
 }
 
 // Get pointer to extension for a filename string (includes the dot: .png)
@@ -2950,6 +3009,82 @@ const char *GetWorkingDirectory(void)
     return path;
 }
 
+const char *GetApplicationDirectory(void)
+{
+    static char appDir[MAX_FILEPATH_LENGTH] = { 0 };
+    memset(appDir, 0, MAX_FILEPATH_LENGTH);
+
+#if defined(_WIN32)
+    int len = 0;
+#if defined (UNICODE)
+    unsigned short widePath[MAX_PATH];
+    len = GetModuleFileNameW(NULL, widePath, MAX_PATH);
+    len = WideCharToMultiByte(0, 0, widePath, len, appDir, MAX_PATH, NULL, NULL);
+#else
+    len = GetModuleFileNameA(NULL, appDir, MAX_PATH);
+#endif
+    if (len > 0)
+    {
+        for (int i = len; i >= 0; --i)
+        {
+            if (appDir[i] == '\\')
+            {
+                appDir[i + 1] = '\0';
+                break;
+            }
+        }
+    }
+    else
+    {
+        appDir[0] = '.';
+        appDir[1] = '\\';
+    }
+
+#elif defined(__linux__)
+    unsigned int size = sizeof(appDir);
+    ssize_t len = readlink("/proc/self/exe", appDir, size);
+
+    if (len > 0)
+    {
+        for (int i = len; i >= 0; --i)
+        {
+            if (appDir[i] == '/')
+            {
+                appDir[i + 1] = '\0';
+                break;
+            }
+        }
+    }
+    else
+    {
+        appDir[0] = '.';
+        appDir[1] = '/';
+    }
+#elif defined(__APPLE__)
+    uint32_t size = sizeof(appDir);
+
+    if (_NSGetExecutablePath(appDir, &size) == 0)
+    {
+        int len = strlen(appDir);
+        for (int i = len; i >= 0; --i)
+        {
+            if (appDir[i] == '/')
+            {
+                appDir[i + 1] = '\0';
+                break;
+            }
+        }
+    }
+    else
+    {
+        appDir[0] = '.';
+        appDir[1] = '/';
+    }
+#endif
+
+    return appDir;
+}
+
 // Get filenames in a directory path
 // NOTE: Files count is returned by parameters pointer
 char **GetDirectoryFiles(const char *dirPath, int *fileCount)
@@ -2963,7 +3098,7 @@ char **GetDirectoryFiles(const char *dirPath, int *fileCount)
     if (dir != NULL) // It's a directory
     {
         // Count files
-        while ((entity = readdir(dir)) != NULL) counter++; 
+        while ((entity = readdir(dir)) != NULL) counter++;
 
         dirFileCount = counter;
         *fileCount = dirFileCount;
@@ -2971,7 +3106,7 @@ char **GetDirectoryFiles(const char *dirPath, int *fileCount)
         // Memory allocation for dirFileCount
         dirFilesPath = (char **)RL_MALLOC(dirFileCount*sizeof(char *));
         for (int i = 0; i < dirFileCount; i++) dirFilesPath[i] = (char *)RL_MALLOC(MAX_FILEPATH_LENGTH*sizeof(char));
-        
+
         // Reset our position in the directory to the beginning
         rewinddir(dir);
 
@@ -3051,7 +3186,7 @@ long GetFileModTime(const char *fileName)
 }
 
 // Compress data (DEFLATE algorythm)
-unsigned char *CompressData(unsigned char *data, int dataLength, int *compDataLength)
+unsigned char *CompressData(const unsigned char *data, int dataLength, int *compDataLength)
 {
     #define COMPRESSION_QUALITY_DEFLATE  8
 
@@ -3071,7 +3206,7 @@ unsigned char *CompressData(unsigned char *data, int dataLength, int *compDataLe
 }
 
 // Decompress data (DEFLATE algorythm)
-unsigned char *DecompressData(unsigned char *compData, int compDataLength, int *dataLength)
+unsigned char *DecompressData(const unsigned char *compData, int compDataLength, int *dataLength)
 {
     unsigned char *data = NULL;
 
@@ -3123,13 +3258,13 @@ char *EncodeDataBase64(const unsigned char *data, int dataLength, int *outputLen
         encodedData[j++] = base64encodeTable[(triple >> 0*6) & 0x3F];
     }
 
-    for (int i = 0; i < modTable[dataLength%3]; i++) encodedData[*outputLength - 1 - i] = '=';
+    for (int i = 0; i < modTable[dataLength%3]; i++) encodedData[*outputLength - 1 - i] = '=';  // Padding character
 
     return encodedData;
 }
 
 // Decode Base64 string data
-unsigned char *DecodeDataBase64(unsigned char *data, int *outputLength)
+unsigned char *DecodeDataBase64(const unsigned char *data, int *outputLength)
 {
     static const unsigned char base64decodeTable[] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3308,7 +3443,7 @@ void OpenURL(const char *url)
 #if defined(PLATFORM_DESKTOP)
         char *cmd = (char *)RL_CALLOC(strlen(url) + 10, sizeof(char));
     #if defined(_WIN32)
-        sprintf(cmd, "explorer %s", url);
+        sprintf(cmd, "explorer \"%s\"", url);
     #endif
     #if defined(__linux__) || defined(__FreeBSD__)
         sprintf(cmd, "xdg-open '%s'", url); // Alternatives: firefox, x-www-browser
@@ -3317,7 +3452,7 @@ void OpenURL(const char *url)
         sprintf(cmd, "open '%s'", url);
     #endif
         int result = system(cmd);
-        if (result == -1) TRACELOG(LOG_WARNING, "OpenURL() child process could bot be created");
+        if (result == -1) TRACELOG(LOG_WARNING, "OpenURL() child process could not be created");
         RL_FREE(cmd);
 #endif
 #if defined(PLATFORM_WEB)
@@ -3657,10 +3792,10 @@ float GetMouseWheelMove(void)
     return 0.0f;
 #endif
 #if defined(PLATFORM_WEB)
-    return CORE.Input.Mouse.previousWheelMove/100.0f;
+    return CORE.Input.Mouse.currentWheelMove/100.0f;
 #endif
 
-    return CORE.Input.Mouse.previousWheelMove;
+    return CORE.Input.Mouse.currentWheelMove;
 }
 
 // Set mouse cursor
@@ -4037,7 +4172,7 @@ static bool InitGraphicsDevice(int width, int height)
         glfwSwapInterval(1);
         TRACELOG(LOG_INFO, "DISPLAY: Trying to enable VSYNC");
     }
-    
+
     int fbWidth = CORE.Window.screen.width;
     int fbHeight = CORE.Window.screen.height;
 
@@ -4062,7 +4197,7 @@ static bool InitGraphicsDevice(int width, int height)
     CORE.Window.render.height = fbHeight;
     CORE.Window.currentFbo.width = fbWidth;
     CORE.Window.currentFbo.height = fbHeight;
-    
+
     TRACELOG(LOG_INFO, "DISPLAY: Device initialized successfully");
     TRACELOG(LOG_INFO, "    > Display size: %i x %i", CORE.Window.display.width, CORE.Window.display.height);
     TRACELOG(LOG_INFO, "    > Screen size:  %i x %i", CORE.Window.screen.width, CORE.Window.screen.height);
@@ -4101,11 +4236,13 @@ static bool InitGraphicsDevice(int width, int height)
 #else
     TRACELOG(LOG_INFO, "DISPLAY: No graphic card set, trying platform-gpu-card");
     CORE.Window.fd = open("/dev/dri/by-path/platform-gpu-card",  O_RDWR); // VideoCore VI (Raspberry Pi 4)
+
     if ((-1 == CORE.Window.fd) || (drmModeGetResources(CORE.Window.fd) == NULL))
     {
         TRACELOG(LOG_INFO, "DISPLAY: Failed to open platform-gpu-card, trying card1");
         CORE.Window.fd = open("/dev/dri/card1", O_RDWR); // Other Embedded
     }
+
     if ((-1 == CORE.Window.fd) || (drmModeGetResources(CORE.Window.fd) == NULL))
     {
         TRACELOG(LOG_INFO, "DISPLAY: Failed to open graphic card1, trying card0");
@@ -4474,7 +4611,7 @@ static bool InitGraphicsDevice(int width, int height)
         CORE.Window.render.height = CORE.Window.screen.height;
         CORE.Window.currentFbo.width = CORE.Window.render.width;
         CORE.Window.currentFbo.height = CORE.Window.render.height;
-        
+
         TRACELOG(LOG_INFO, "DISPLAY: Device initialized successfully");
         TRACELOG(LOG_INFO, "    > Display size: %i x %i", CORE.Window.display.width, CORE.Window.display.height);
         TRACELOG(LOG_INFO, "    > Screen size:  %i x %i", CORE.Window.screen.width, CORE.Window.screen.height);
@@ -4813,7 +4950,7 @@ void PollInputEvents(void)
 
     // Register previous touch states
     for (int i = 0; i < MAX_TOUCH_POINTS; i++) CORE.Input.Touch.previousTouchState[i] = CORE.Input.Touch.currentTouchState[i];
-    
+
     // Reset touch positions
     // TODO: It resets on PLATFORM_WEB the mouse position and not filled again until a move-event,
     // so, if mouse is not moved it returns a (0, 0) position... this behaviour should be reviewed!
@@ -5024,39 +5161,6 @@ static void ErrorCallback(int error, const char *description)
     TRACELOG(LOG_WARNING, "GLFW: Error: %i Description: %s", error, description);
 }
 
-#if defined(PLATFORM_WEB)
-EM_JS(int, GetCanvasWidth, (), { return canvas.clientWidth; });
-EM_JS(int, GetCanvasHeight, (), { return canvas.clientHeight; });
-
-static EM_BOOL EmscriptenResizeCallback(int eventType, const EmscriptenUiEvent *e, void *userData)
-{
-    // Don't resize non-resizeable windows
-    if ((CORE.Window.flags & FLAG_WINDOW_RESIZABLE) == 0) return 1;
-
-    // This event is called whenever the window changes sizes,
-    // so the size of the canvas object is explicitly retrieved below
-    int width = GetCanvasWidth();
-    int height = GetCanvasHeight();
-    emscripten_set_canvas_element_size("#canvas",width,height);
-
-    SetupViewport(width, height);    // Reset viewport and projection matrix for new size
-
-    CORE.Window.currentFbo.width = width;
-    CORE.Window.currentFbo.height = height;
-    CORE.Window.resizedLastFrame = true;
-
-    if (IsWindowFullscreen()) return 1;
-
-    // Set current screen size
-    CORE.Window.screen.width = width;
-    CORE.Window.screen.height = height;
-
-    // NOTE: Postprocessing texture is not scaled to new size
-
-    return 0;
-}
-#endif
-
 // GLFW3 WindowSize Callback, runs when window is resizedLastFrame
 // NOTE: Window resizing not allowed by default
 static void WindowSizeCallback(GLFWwindow *window, int width, int height)
@@ -5130,7 +5234,7 @@ static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
         CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = key;
         CORE.Input.Keyboard.keyPressedQueueCount++;
     }
-    
+
     // Check the exit key to set close window
     if ((key == CORE.Input.Keyboard.exitKey) && (action == GLFW_PRESS)) glfwSetWindowShouldClose(CORE.Window.handle, GLFW_TRUE);
 
@@ -5546,11 +5650,82 @@ static int32_t AndroidInputCallback(struct android_app *app, AInputEvent *event)
 #endif
 
 #if defined(PLATFORM_WEB)
+// Register fullscreen change events
+static EM_BOOL EmscriptenFullscreenChangeCallback(int eventType, const EmscriptenFullscreenChangeEvent *event, void *userData)
+{
+    // TODO.
+
+    return 1;   // The event was consumed by the callback handler
+}
+
+// Register window resize event
+static EM_BOOL EmscriptenWindowResizedCallback(int eventType, const EmscriptenUiEvent *event, void *userData)
+{
+    // TODO.
+
+    return 1;   // The event was consumed by the callback handler
+}
+
+EM_JS(int, GetCanvasWidth, (), { return canvas.clientWidth; });
+EM_JS(int, GetCanvasHeight, (), { return canvas.clientHeight; });
+
+// Register DOM element resize event
+static EM_BOOL EmscriptenResizeCallback(int eventType, const EmscriptenUiEvent *event, void *userData)
+{
+    // Don't resize non-resizeable windows
+    if ((CORE.Window.flags & FLAG_WINDOW_RESIZABLE) == 0) return 1;
+
+    // This event is called whenever the window changes sizes,
+    // so the size of the canvas object is explicitly retrieved below
+    int width = GetCanvasWidth();
+    int height = GetCanvasHeight();
+    emscripten_set_canvas_element_size("#canvas",width,height);
+
+    SetupViewport(width, height);    // Reset viewport and projection matrix for new size
+
+    CORE.Window.currentFbo.width = width;
+    CORE.Window.currentFbo.height = height;
+    CORE.Window.resizedLastFrame = true;
+
+    if (IsWindowFullscreen()) return 1;
+
+    // Set current screen size
+    CORE.Window.screen.width = width;
+    CORE.Window.screen.height = height;
+
+    // NOTE: Postprocessing texture is not scaled to new size
+
+    return 0;
+}
+
 // Register mouse input events
 static EM_BOOL EmscriptenMouseCallback(int eventType, const EmscriptenMouseEvent *mouseEvent, void *userData)
 {
     // This is only for registering mouse click events with emscripten and doesn't need to do anything
-    return 0;
+
+    return 1;   // The event was consumed by the callback handler
+}
+
+// Register connected/disconnected gamepads events
+static EM_BOOL EmscriptenGamepadCallback(int eventType, const EmscriptenGamepadEvent *gamepadEvent, void *userData)
+{
+    /*
+    TRACELOGD("%s: timeStamp: %g, connected: %d, index: %ld, numAxes: %d, numButtons: %d, id: \"%s\", mapping: \"%s\"",
+           eventType != 0? emscripten_event_type_to_string(eventType) : "Gamepad state",
+           gamepadEvent->timestamp, gamepadEvent->connected, gamepadEvent->index, gamepadEvent->numAxes, gamepadEvent->numButtons, gamepadEvent->id, gamepadEvent->mapping);
+
+    for (int i = 0; i < gamepadEvent->numAxes; ++i) TRACELOGD("Axis %d: %g", i, gamepadEvent->axis[i]);
+    for (int i = 0; i < gamepadEvent->numButtons; ++i) TRACELOGD("Button %d: Digital: %d, Analog: %g", i, gamepadEvent->digitalButton[i], gamepadEvent->analogButton[i]);
+    */
+
+    if ((gamepadEvent->connected) && (gamepadEvent->index < MAX_GAMEPADS))
+    {
+        CORE.Input.Gamepad.ready[gamepadEvent->index] = true;
+        sprintf(CORE.Input.Gamepad.name[gamepadEvent->index],"%s",gamepadEvent->id);
+    }
+    else CORE.Input.Gamepad.ready[gamepadEvent->index] = false;
+
+    return 1;   // The event was consumed by the callback handler
 }
 
 // Register touch input events
@@ -5603,29 +5778,7 @@ static EM_BOOL EmscriptenTouchCallback(int eventType, const EmscriptenTouchEvent
     ProcessGestureEvent(gestureEvent);
 #endif
 
-    return 1;
-}
-
-// Register connected/disconnected gamepads events
-static EM_BOOL EmscriptenGamepadCallback(int eventType, const EmscriptenGamepadEvent *gamepadEvent, void *userData)
-{
-    /*
-    TRACELOGD("%s: timeStamp: %g, connected: %d, index: %ld, numAxes: %d, numButtons: %d, id: \"%s\", mapping: \"%s\"",
-           eventType != 0? emscripten_event_type_to_string(eventType) : "Gamepad state",
-           gamepadEvent->timestamp, gamepadEvent->connected, gamepadEvent->index, gamepadEvent->numAxes, gamepadEvent->numButtons, gamepadEvent->id, gamepadEvent->mapping);
-
-    for (int i = 0; i < gamepadEvent->numAxes; ++i) TRACELOGD("Axis %d: %g", i, gamepadEvent->axis[i]);
-    for (int i = 0; i < gamepadEvent->numButtons; ++i) TRACELOGD("Button %d: Digital: %d, Analog: %g", i, gamepadEvent->digitalButton[i], gamepadEvent->analogButton[i]);
-    */
-
-    if ((gamepadEvent->connected) && (gamepadEvent->index < MAX_GAMEPADS))
-    {
-        CORE.Input.Gamepad.ready[gamepadEvent->index] = true;
-        sprintf(CORE.Input.Gamepad.name[gamepadEvent->index],"%s",gamepadEvent->id);
-    }
-    else CORE.Input.Gamepad.ready[gamepadEvent->index] = false;
-
-    return 0;
+    return 1;   // The event was consumed by the callback handler
 }
 #endif
 
@@ -6437,7 +6590,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
         TRACELOG(LOG_TRACE, "DISPLAY: DRM mode: %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh,
             (mode->flags & DRM_MODE_FLAG_INTERLACE) ? "interlaced" : "progressive");
 
-        if ((mode->hdisplay < width) || (mode->vdisplay < height) | (mode->vrefresh < fps))
+        if ((mode->hdisplay < width) || (mode->vdisplay < height) || (mode->vrefresh < fps))
         {
             TRACELOG(LOG_TRACE, "DISPLAY: DRM mode is too small");
             continue;

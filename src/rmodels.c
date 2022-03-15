@@ -21,7 +21,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2021 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2013-2022 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -1174,7 +1174,7 @@ void UploadMesh(Mesh *mesh, bool dynamic)
 }
 
 // Update mesh vertex data in GPU for a specific buffer index
-void UpdateMeshBuffer(Mesh mesh, int index, void *data, int dataSize, int offset)
+void UpdateMeshBuffer(Mesh mesh, int index, const void *data, int dataSize, int offset)
 {
     rlUpdateVertexBuffer(mesh.vboId[index], data, dataSize, offset);
 }
@@ -1329,7 +1329,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
                 // Set default value for unused attribute
                 // NOTE: Required when using default shader and no VAO support
                 float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-                rlSetVertexAttributeDefault(material.shader.locs[SHADER_LOC_VERTEX_COLOR], value, SHADER_ATTRIB_VEC2, 4);
+                rlSetVertexAttributeDefault(material.shader.locs[SHADER_LOC_VERTEX_COLOR], value, SHADER_ATTRIB_VEC4, 4);
                 rlDisableVertexAttribute(material.shader.locs[SHADER_LOC_VERTEX_COLOR]);
             }
         }
@@ -1404,7 +1404,7 @@ void DrawMesh(Mesh mesh, Material material, Matrix transform)
 }
 
 // Draw multiple mesh instances with material and different transforms
-void DrawMeshInstanced(Mesh mesh, Material material, Matrix *transforms, int instances)
+void DrawMeshInstanced(Mesh mesh, Material material, const Matrix *transforms, int instances)
 {
 #if defined(GRAPHICS_API_OPENGL_33) || defined(GRAPHICS_API_OPENGL_ES2)
     // Instancing required variables
@@ -1544,7 +1544,7 @@ void DrawMeshInstanced(Mesh mesh, Material material, Matrix *transforms, int ins
                 // Set default value for unused attribute
                 // NOTE: Required when using default shader and no VAO support
                 float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-                rlSetVertexAttributeDefault(material.shader.locs[SHADER_LOC_VERTEX_COLOR], value, SHADER_ATTRIB_VEC2, 4);
+                rlSetVertexAttributeDefault(material.shader.locs[SHADER_LOC_VERTEX_COLOR], value, SHADER_ATTRIB_VEC4, 4);
                 rlDisableVertexAttribute(material.shader.locs[SHADER_LOC_VERTEX_COLOR]);
             }
         }
@@ -1624,7 +1624,7 @@ void UnloadMesh(Mesh mesh)
     // Unload rlgl mesh vboId data
     rlUnloadVertexArray(mesh.vaoId);
 
-    for (int i = 0; i < MAX_MESH_VERTEX_BUFFERS; i++) rlUnloadVertexBuffer(mesh.vboId[i]);
+    if (mesh.vboId != NULL) for (int i = 0; i < MAX_MESH_VERTEX_BUFFERS; i++) rlUnloadVertexBuffer(mesh.vboId[i]);
     RL_FREE(mesh.vboId);
 
     RL_FREE(mesh.vertices);
@@ -1649,13 +1649,13 @@ bool ExportMesh(Mesh mesh, const char *fileName)
     if (IsFileExtension(fileName, ".obj"))
     {
         // Estimated data size, it should be enough...
-        int dataSize = mesh.vertexCount/3*(int)strlen("v 0000.00f 0000.00f 0000.00f") +
-                       mesh.vertexCount/2*(int)strlen("vt 0.000f 0.00f") +
-                       mesh.vertexCount/3*(int)strlen("vn 0.000f 0.00f 0.00f") +
-                       mesh.triangleCount/3*(int)strlen("f 00000/00000/00000 00000/00000/00000 00000/00000/00000");
+        int dataSize = mesh.vertexCount*(int)strlen("v 0000.00f 0000.00f 0000.00f") +
+                       mesh.vertexCount*(int)strlen("vt 0.000f 0.00f") +
+                       mesh.vertexCount*(int)strlen("vn 0.000f 0.00f 0.00f") +
+                       mesh.triangleCount*(int)strlen("f 00000/00000/00000 00000/00000/00000 00000/00000/00000");
 
         // NOTE: Text data buffer size is estimated considering mesh data size
-        char *txtData = (char *)RL_CALLOC(dataSize + 2000, sizeof(char));
+        char *txtData = (char *)RL_CALLOC(dataSize*2 + 2000, sizeof(char));
 
         int byteCount = 0;
         byteCount += sprintf(txtData + byteCount, "# //////////////////////////////////////////////////////////////////////////////////\n");
@@ -1665,7 +1665,7 @@ bool ExportMesh(Mesh mesh, const char *fileName)
         byteCount += sprintf(txtData + byteCount, "# // more info and bugs-report:  github.com/raysan5/raylib                        //\n");
         byteCount += sprintf(txtData + byteCount, "# // feedback and support:       ray[at]raylib.com                                //\n");
         byteCount += sprintf(txtData + byteCount, "# //                                                                              //\n");
-        byteCount += sprintf(txtData + byteCount, "# // Copyright (c) 2018 Ramon Santamaria (@raysan5)                               //\n");
+        byteCount += sprintf(txtData + byteCount, "# // Copyright (c) 2018-2022 Ramon Santamaria (@raysan5)                          //\n");
         byteCount += sprintf(txtData + byteCount, "# //                                                                              //\n");
         byteCount += sprintf(txtData + byteCount, "# //////////////////////////////////////////////////////////////////////////////////\n\n");
         byteCount += sprintf(txtData + byteCount, "# Vertex Count:     %i\n", mesh.vertexCount);
@@ -1688,9 +1688,22 @@ bool ExportMesh(Mesh mesh, const char *fileName)
             byteCount += sprintf(txtData + byteCount, "vn %.3f %.3f %.3f\n", mesh.normals[v], mesh.normals[v + 1], mesh.normals[v + 2]);
         }
 
-        for (int i = 0; i < mesh.triangleCount; i++)
+        if (mesh.indices != NULL)
         {
-            byteCount += sprintf(txtData + byteCount, "f %i/%i/%i %i/%i/%i %i/%i/%i\n", i, i, i, i + 1, i + 1, i + 1, i + 2, i + 2, i + 2);
+            for (int i = 0, v = 0; i < mesh.triangleCount; i++, v += 3)
+            {
+                byteCount += sprintf(txtData + byteCount, "f %i/%i/%i %i/%i/%i %i/%i/%i\n",
+                    mesh.indices[v] + 1, mesh.indices[v] + 1, mesh.indices[v] + 1,
+                    mesh.indices[v + 1] + 1, mesh.indices[v + 1] + 1, mesh.indices[v + 1] + 1,
+                    mesh.indices[v + 2] + 1, mesh.indices[v + 2] + 1, mesh.indices[v + 2] + 1);
+            }
+        }
+        else
+        {
+            for (int i = 0, v = 1; i < mesh.triangleCount; i++, v += 3)
+            {
+                byteCount += sprintf(txtData + byteCount, "f %i/%i/%i %i/%i/%i %i/%i/%i\n", v, v, v, v + 1, v + 1, v + 1, v + 2, v + 2, v + 2);
+            }
         }
 
         byteCount += sprintf(txtData + byteCount, "\n");
@@ -1774,9 +1787,12 @@ void UnloadMaterial(Material material)
     if (material.shader.id != rlGetShaderIdDefault()) UnloadShader(material.shader);
 
     // Unload loaded texture maps (avoid unloading default texture, managed by raylib)
-    for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
+    if (material.maps != NULL)
     {
-        if (material.maps[i].texture.id != rlGetTextureIdDefault()) rlUnloadTexture(material.maps[i].texture.id);
+        for (int i = 0; i < MAX_MATERIAL_MAPS; i++)
+        {
+            if (material.maps[i].texture.id != rlGetTextureIdDefault()) rlUnloadTexture(material.maps[i].texture.id);
+        }
     }
 
     RL_FREE(material.maps);
@@ -1914,7 +1930,7 @@ void UpdateModelAnimation(Model model, ModelAnimation anim, int frame)
 }
 
 // Unload animation array data
-void UnloadModelAnimations(ModelAnimation* animations, unsigned int count)
+void UnloadModelAnimations(ModelAnimation *animations, unsigned int count)
 {
     for (unsigned int i = 0; i < count; i++) UnloadModelAnimation(animations[i]);
     RL_FREE(animations);
@@ -2252,14 +2268,14 @@ Mesh GenMeshCube(float width, float height, float length)
     int k = 0;
 
     // Indices can be initialized right now
-    for (int i = 0; i < 36; i+=6)
+    for (int i = 0; i < 36; i += 6)
     {
         mesh.indices[i] = 4*k;
-        mesh.indices[i+1] = 4*k+1;
-        mesh.indices[i+2] = 4*k+2;
-        mesh.indices[i+3] = 4*k;
-        mesh.indices[i+4] = 4*k+2;
-        mesh.indices[i+5] = 4*k+3;
+        mesh.indices[i + 1] = 4*k + 1;
+        mesh.indices[i + 2] = 4*k + 2;
+        mesh.indices[i + 3] = 4*k;
+        mesh.indices[i + 4] = 4*k + 2;
+        mesh.indices[i + 5] = 4*k + 3;
 
         k++;
     }
@@ -2415,13 +2431,13 @@ Mesh GenMeshCylinder(float radius, float height, int slices)
         par_shapes_mesh *cylinder = par_shapes_create_cylinder(slices, 8);
         par_shapes_scale(cylinder, radius, radius, height);
         par_shapes_rotate(cylinder, -PI/2.0f, (float[]){ 1, 0, 0 });
-        par_shapes_rotate(cylinder, PI/2.0f, (float[]){ 0, 1, 0 });
 
         // Generate an orientable disk shape (top cap)
         par_shapes_mesh *capTop = par_shapes_create_disk(radius, slices, (float[]){ 0, 0, 0 }, (float[]){ 0, 0, 1 });
         capTop->tcoords = PAR_MALLOC(float, 2*capTop->npoints);
         for (int i = 0; i < 2*capTop->npoints; i++) capTop->tcoords[i] = 0.0f;
         par_shapes_rotate(capTop, -PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(capTop, 90*DEG2RAD, (float[]){ 0, 1, 0 });
         par_shapes_translate(capTop, 0, height, 0);
 
         // Generate an orientable disk shape (bottom cap)
@@ -2429,6 +2445,7 @@ Mesh GenMeshCylinder(float radius, float height, int slices)
         capBottom->tcoords = PAR_MALLOC(float, 2*capBottom->npoints);
         for (int i = 0; i < 2*capBottom->npoints; i++) capBottom->tcoords[i] = 0.95f;
         par_shapes_rotate(capBottom, PI/2.0f, (float[]){ 1, 0, 0 });
+        par_shapes_rotate(capBottom, -90*DEG2RAD, (float[]){ 0, 1, 0 });
 
         par_shapes_merge_and_free(cylinder, capTop);
         par_shapes_merge_and_free(cylinder, capBottom);
@@ -4284,7 +4301,7 @@ static Model LoadIQM(const char *fileName)
 }
 
 // Load IQM animation data
-static ModelAnimation* LoadModelAnimationsIQM(const char *fileName, unsigned int *animCount)
+static ModelAnimation *LoadModelAnimationsIQM(const char *fileName, unsigned int *animCount)
 {
     #define IQM_MAGIC       "INTERQUAKEMODEL"   // IQM file magic number
     #define IQM_VERSION     2                   // only IQM version 2 supported
@@ -4526,7 +4543,7 @@ static Image LoadImageFromCgltfImage(cgltf_image *cgltfImage, const char *texPat
 
                 cgltf_options options = { 0 };
                 cgltf_result result = cgltf_load_buffer_base64(&options, outSize, cgltfImage->uri + i + 1, &data);
-                
+
                 if (result == cgltf_result_success)
                 {
                     image = LoadImageFromMemory(".png", (unsigned char *)data, outSize);
@@ -4554,12 +4571,12 @@ static Image LoadImageFromCgltfImage(cgltf_image *cgltfImage, const char *texPat
 
         // Check mime_type for image: (cgltfImage->mime_type == "image/png")
         // NOTE: Detected that some models define mime_type as "image\\/png"
-        if ((strcmp(cgltfImage->mime_type, "image\\/png") == 0) || 
+        if ((strcmp(cgltfImage->mime_type, "image\\/png") == 0) ||
             (strcmp(cgltfImage->mime_type, "image/png") == 0)) image = LoadImageFromMemory(".png", data, (int)cgltfImage->buffer_view->size);
         else if ((strcmp(cgltfImage->mime_type, "image\\/jpeg") == 0) ||
                  (strcmp(cgltfImage->mime_type, "image/jpeg") == 0)) image = LoadImageFromMemory(".jpg", data, (int)cgltfImage->buffer_view->size);
         else TRACELOG(LOG_WARNING, "MODEL: glTF image data MIME type not recognized", TextFormat("%s/%s", texPath, cgltfImage->uri));
-        
+
         RL_FREE(data);
     }
 
@@ -4620,7 +4637,7 @@ static Model LoadGLTF(const char *fileName)
     cgltf_options options = { 0 };
     cgltf_data *data = NULL;
     cgltf_result result = cgltf_parse(&options, fileData, dataSize, &data);
-    
+
     if (result == cgltf_result_success)
     {
         if (data->file_type == cgltf_file_type_glb) TRACELOG(LOG_INFO, "MODEL: [%s] Model basic data (glb) loaded successfully", fileName);
@@ -4648,7 +4665,7 @@ static Model LoadGLTF(const char *fileName)
         for (int i = 0; i < model.meshCount; i++) model.meshes[i].vboId = (unsigned int*)RL_CALLOC(MAX_MESH_VERTEX_BUFFERS, sizeof(unsigned int));
 
         // NOTE: We keep an extra slot for default material, in case some mesh requires it
-        model.materialCount = (int)data->materials_count + 1;       
+        model.materialCount = (int)data->materials_count + 1;
         model.materials = RL_CALLOC(model.materialCount, sizeof(Material));
         model.materials[0] = LoadMaterialDefault();     // Load default material (index: 0)
 
@@ -4675,13 +4692,12 @@ static Model LoadGLTF(const char *fileName)
                         model.materials[j].maps[MATERIAL_MAP_ALBEDO].texture = LoadTextureFromImage(imAlbedo);
                         UnloadImage(imAlbedo);
                     }
-
-                    // Load base color factor (tint)
-                    model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.r = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[0]*255);
-                    model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.g = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[1]*255);
-                    model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.b = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[2]*255);
-                    model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.a = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[3]*255);
                 }
+                // Load base color factor (tint)
+                model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.r = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[0]*255);
+                model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.g = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[1]*255);
+                model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.b = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[2]*255);
+                model.materials[j].maps[MATERIAL_MAP_ALBEDO].color.a = (unsigned char)(data->materials[i].pbr_metallic_roughness.base_color_factor[3]*255);
 
                 // Load metallic/roughness texture
                 if (data->materials[i].pbr_metallic_roughness.metallic_roughness_texture.texture)
@@ -4692,8 +4708,8 @@ static Model LoadGLTF(const char *fileName)
                         model.materials[j].maps[MATERIAL_MAP_ROUGHNESS].texture = LoadTextureFromImage(imMetallicRoughness);
                         UnloadImage(imMetallicRoughness);
                     }
-                    
-                    // Load metallic/roughness material properties 
+
+                    // Load metallic/roughness material properties
                     float roughness = data->materials[i].pbr_metallic_roughness.roughness_factor;
                     model.materials[j].maps[MATERIAL_MAP_ROUGHNESS].value = roughness;
 
@@ -4741,7 +4757,7 @@ static Model LoadGLTF(const char *fileName)
                 }
             }
 
-            // Other possible materials not supported by raylib pipeline: 
+            // Other possible materials not supported by raylib pipeline:
             // has_clearcoat, has_transmission, has_volume, has_ior, has specular, has_sheen
         }
 
@@ -4771,7 +4787,7 @@ static Model LoadGLTF(const char *fileName)
 
                         if ((attribute->component_type == cgltf_component_type_r_32f) && (attribute->type == cgltf_type_vec3))
                         {
-                            // Init raylib mesh vertices to copy glTF attribute data 
+                            // Init raylib mesh vertices to copy glTF attribute data
                             model.meshes[meshIndex].vertexCount = (int)attribute->count;
                             model.meshes[meshIndex].vertices = RL_MALLOC(attribute->count*3*sizeof(float));
 

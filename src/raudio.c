@@ -50,7 +50,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2021 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2013-2022 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -317,6 +317,7 @@ struct rAudioBuffer {
 
     float volume;                   // Audio buffer volume
     float pitch;                    // Audio buffer pitch
+    float pan;                      // Audio buffer pan (0.0f to 1.0f)
 
     bool playing;                   // Audio buffer state: AUDIO_PLAYING
     bool paused;                    // Audio buffer state: AUDIO_PAUSED
@@ -373,7 +374,7 @@ static AudioData AUDIO = {          // Global AUDIO context
 //----------------------------------------------------------------------------------
 static void OnLog(ma_context *pContext, ma_device *pDevice, ma_uint32 logLevel, const char *message);
 static void OnSendAudioDataToDevice(ma_device *pDevice, void *pFramesOut, const void *pFramesInput, ma_uint32 frameCount);
-static void MixAudioFrames(float *framesOut, const float *framesIn, ma_uint32 frameCount, float localVolume);
+static void MixAudioFrames(float *framesOut, const float *framesIn, ma_uint32 frameCount, AudioBuffer *buffer);
 
 #if defined(RAUDIO_STANDALONE)
 static bool IsFileExtension(const char *fileName, const char *ext); // Check file extension
@@ -398,6 +399,7 @@ void PauseAudioBuffer(AudioBuffer *buffer);
 void ResumeAudioBuffer(AudioBuffer *buffer);
 void SetAudioBufferVolume(AudioBuffer *buffer, float volume);
 void SetAudioBufferPitch(AudioBuffer *buffer, float pitch);
+void SetAudioBufferPan(AudioBuffer *buffer, float pan);
 void TrackAudioBuffer(AudioBuffer *buffer);
 void UntrackAudioBuffer(AudioBuffer *buffer);
 
@@ -553,6 +555,8 @@ AudioBuffer *LoadAudioBuffer(ma_format format, ma_uint32 channels, ma_uint32 sam
     // Init audio buffer values
     audioBuffer->volume = 1.0f;
     audioBuffer->pitch = 1.0f;
+    audioBuffer->pan = 0.5f;
+
     audioBuffer->playing = false;
     audioBuffer->paused = false;
     audioBuffer->looping = false;
@@ -655,6 +659,15 @@ void SetAudioBufferPitch(AudioBuffer *buffer, float pitch)
 
         buffer->pitch = pitch;
     }
+}
+
+// Set pan for an audio buffer
+void SetAudioBufferPan(AudioBuffer *buffer, float pan)
+{
+    if (pan < 0.0f) pan = 0.0f;
+    else if (pan > 1.0f) pan = 1.0f;
+
+    if (buffer != NULL) buffer->pan = pan;
 }
 
 // Track audio buffer to linked list next position
@@ -862,17 +875,15 @@ Sound LoadSoundFromWave(Wave wave)
 // Unload wave data
 void UnloadWave(Wave wave)
 {
-    if (wave.data != NULL) RL_FREE(wave.data);
-
-    TRACELOG(LOG_INFO, "WAVE: Unloaded wave data from RAM");
+    RL_FREE(wave.data);
+    //TRACELOG(LOG_INFO, "WAVE: Unloaded wave data from RAM");
 }
 
 // Unload sound
 void UnloadSound(Sound sound)
 {
     UnloadAudioBuffer(sound.stream.buffer);
-
-    TRACELOG(LOG_INFO, "WAVE: Unloaded sound data from RAM");
+    //TRACELOG(LOG_INFO, "SOUND: Unloaded sound data from RAM");
 }
 
 // Update sound buffer with new data
@@ -899,7 +910,8 @@ bool ExportWave(Wave wave, const char *fileName)
         drwav wav = { 0 };
         drwav_data_format format = { 0 };
         format.container = drwav_container_riff;
-        format.format = DR_WAVE_FORMAT_PCM;
+        if (wave.sampleSize == 32) format.format = DR_WAVE_FORMAT_IEEE_FLOAT;
+        else format.format = DR_WAVE_FORMAT_PCM;
         format.channels = wave.channels;
         format.sampleRate = wave.sampleRate;
         format.bitsPerSample = wave.sampleSize;
@@ -946,40 +958,49 @@ bool ExportWaveAsCode(Wave wave, const char *fileName)
     int byteCount = 0;
     byteCount += sprintf(txtData + byteCount, "\n//////////////////////////////////////////////////////////////////////////////////\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                              //\n");
-    byteCount += sprintf(txtData + byteCount, "// WaveAsCode exporter v1.0 - Wave data exported as an array of bytes           //\n");
+    byteCount += sprintf(txtData + byteCount, "// WaveAsCode exporter v1.1 - Wave data exported as an array of bytes           //\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                              //\n");
     byteCount += sprintf(txtData + byteCount, "// more info and bugs-report:  github.com/raysan5/raylib                        //\n");
     byteCount += sprintf(txtData + byteCount, "// feedback and support:       ray[at]raylib.com                                //\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                              //\n");
-    byteCount += sprintf(txtData + byteCount, "// Copyright (c) 2018-2021 Ramon Santamaria (@raysan5)                          //\n");
+    byteCount += sprintf(txtData + byteCount, "// Copyright (c) 2018-2022 Ramon Santamaria (@raysan5)                          //\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                              //\n");
     byteCount += sprintf(txtData + byteCount, "//////////////////////////////////////////////////////////////////////////////////\n\n");
 
-    char varFileName[256] = { 0 };
-#if !defined(RAUDIO_STANDALONE)
-    // Get file name from path and convert variable name to uppercase
-    strcpy(varFileName, GetFileNameWithoutExt(fileName));
-    for (int i = 0; varFileName[i] != '\0'; i++) if (varFileName[i] >= 'a' && varFileName[i] <= 'z') { varFileName[i] = varFileName[i] - 32; }
-#else
-    strcpy(varFileName, fileName);
-#endif
+    char fileNameLower[256] = { 0 };
+    char fileNameUpper[256] = { 0 };
+    for (int i = 0; fileName[i] != '.'; i++) { fileNameLower[i] = fileName[i]; }      // Get filename without extension
+    for (int i = 0; fileNameLower[i] != '\0'; i++) if (fileNameLower[i] >= 'a' && fileNameLower[i] <= 'z') { fileNameUpper[i] = fileNameLower[i] - 32; }
 
     byteCount += sprintf(txtData + byteCount, "// Wave data information\n");
-    byteCount += sprintf(txtData + byteCount, "#define %s_FRAME_COUNT      %u\n", varFileName, wave.frameCount);
-    byteCount += sprintf(txtData + byteCount, "#define %s_SAMPLE_RATE      %u\n", varFileName, wave.sampleRate);
-    byteCount += sprintf(txtData + byteCount, "#define %s_SAMPLE_SIZE      %u\n", varFileName, wave.sampleSize);
-    byteCount += sprintf(txtData + byteCount, "#define %s_CHANNELS         %u\n\n", varFileName, wave.channels);
+    byteCount += sprintf(txtData + byteCount, "#define %s_FRAME_COUNT      %u\n", fileNameUpper, wave.frameCount);
+    byteCount += sprintf(txtData + byteCount, "#define %s_SAMPLE_RATE      %u\n", fileNameUpper, wave.sampleRate);
+    byteCount += sprintf(txtData + byteCount, "#define %s_SAMPLE_SIZE      %u\n", fileNameUpper, wave.sampleSize);
+    byteCount += sprintf(txtData + byteCount, "#define %s_CHANNELS         %u\n\n", fileNameUpper, wave.channels);
 
-    // Write byte data as hexadecimal text
-    // NOTE: Frame data exported is interlaced: Frame01[Sample-Channel01, Sample-Channel02, ...], Frame02[], Frame03[]
-    byteCount += sprintf(txtData + byteCount, "static unsigned char %s_DATA[%i] = { ", varFileName, waveDataSize);
-    for (int i = 0; i < waveDataSize - 1; i++) byteCount += sprintf(txtData + byteCount, ((i%TEXT_BYTES_PER_LINE == 0)? "0x%x,\n" : "0x%x, "), ((unsigned char *)wave.data)[i]);
-    byteCount += sprintf(txtData + byteCount, "0x%x };\n", ((unsigned char *)wave.data)[waveDataSize - 1]);
+    // Write wave data as an array of values
+    // Wave data is exported as byte array for 8/16bit and float array for 32bit float data
+    // NOTE: Frame data exported is channel-interlaced: frame01[sampleChannel1, sampleChannel2, ...], frame02[], frame03[]
+    if (wave.sampleSize == 32)
+    {
+        byteCount += sprintf(txtData + byteCount, "static float %sData[%i] = {\n", fileNameLower, waveDataSize/4);
+        for (int i = 1; i < waveDataSize/4; i++) byteCount += sprintf(txtData + byteCount, ((i%TEXT_BYTES_PER_LINE == 0)? "%.4ff,\n    " : "%.4ff, "), ((float *)wave.data)[i - 1]);
+        byteCount += sprintf(txtData + byteCount, "%.4ff };\n", ((float *)wave.data)[waveDataSize/4 - 1]);
+    }
+    else
+    {
+        byteCount += sprintf(txtData + byteCount, "static unsigned char %sData[%i] = { ", fileNameLower, waveDataSize);
+        for (int i = 1; i < waveDataSize; i++) byteCount += sprintf(txtData + byteCount, ((i%TEXT_BYTES_PER_LINE == 0)? "0x%x,\n    " : "0x%x, "), ((unsigned char *)wave.data)[i - 1]);
+        byteCount += sprintf(txtData + byteCount, "0x%x };\n", ((unsigned char *)wave.data)[waveDataSize - 1]);
+    }
 
     // NOTE: Text data length exported is determined by '\0' (NULL) character
     success = SaveFileText(fileName, txtData);
 
     RL_FREE(txtData);
+
+    if (success != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Wave as code exported successfully", fileName);
+    else TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to export wave as code", fileName);
 
     return success;
 }
@@ -1038,8 +1059,10 @@ void PlaySoundMulti(Sound sound)
     AUDIO.MultiChannel.channels[index] = AUDIO.MultiChannel.poolCounter;
     AUDIO.MultiChannel.poolCounter++;
 
-    AUDIO.MultiChannel.pool[index]->volume = sound.stream.buffer->volume;
-    AUDIO.MultiChannel.pool[index]->pitch = sound.stream.buffer->pitch;
+    SetAudioBufferVolume(AUDIO.MultiChannel.pool[index], sound.stream.buffer->volume);
+    SetAudioBufferPitch(AUDIO.MultiChannel.pool[index], sound.stream.buffer->pitch);
+    SetAudioBufferPan(AUDIO.MultiChannel.pool[index], sound.stream.buffer->pan);
+
     AUDIO.MultiChannel.pool[index]->looping = sound.stream.buffer->looping;
     AUDIO.MultiChannel.pool[index]->usage = sound.stream.buffer->usage;
     AUDIO.MultiChannel.pool[index]->isSubBufferProcessed[0] = false;
@@ -1103,6 +1126,12 @@ void SetSoundVolume(Sound sound, float volume)
 void SetSoundPitch(Sound sound, float pitch)
 {
     SetAudioBufferPitch(sound.stream.buffer, pitch);
+}
+
+// Set pan for a sound
+void SetSoundPan(Sound sound, float pan)
+{
+    SetAudioBufferPan(sound.stream.buffer, pan);
 }
 
 // Convert wave data to desired format
@@ -1378,7 +1407,7 @@ Music LoadMusicStream(const char *fileName)
 
 // Load music stream from memory buffer, fileType refers to extension: i.e. ".wav"
 // WARNING: File extension must be provided in lower-case
-Music LoadMusicStreamFromMemory(const char *fileType, unsigned char *data, int dataSize)
+Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data, int dataSize)
 {
     Music music = { 0 };
     bool musicLoaded = false;
@@ -1801,6 +1830,12 @@ void SetMusicPitch(Music music, float pitch)
     SetAudioBufferPitch(music.stream.buffer, pitch);
 }
 
+// Set pan for a music
+void SetMusicPan(Music music, float pan)
+{
+    SetAudioBufferPan(music.stream.buffer, pan);
+}
+
 // Get music time length (in seconds)
 float GetMusicTimeLength(Music music)
 {
@@ -1979,6 +2014,12 @@ void SetAudioStreamVolume(AudioStream stream, float volume)
 void SetAudioStreamPitch(AudioStream stream, float pitch)
 {
     SetAudioBufferPitch(stream.buffer, pitch);
+}
+
+// Set pan for audio stream
+void SetAudioStreamPan(AudioStream stream, float pan)
+{
+    SetAudioBufferPan(stream.buffer, pan);
 }
 
 // Default size for new audio streams
@@ -2176,7 +2217,7 @@ static void OnSendAudioDataToDevice(ma_device *pDevice, void *pFramesOut, const 
                         float *framesOut = (float *)pFramesOut + (framesRead*AUDIO.System.device.playback.channels);
                         float *framesIn = tempBuffer;
 
-                        MixAudioFrames(framesOut, framesIn, framesJustRead, audioBuffer->volume);
+                        MixAudioFrames(framesOut, framesIn, framesJustRead, audioBuffer);
 
                         framesToRead -= framesJustRead;
                         framesRead += framesJustRead;
@@ -2218,16 +2259,40 @@ static void OnSendAudioDataToDevice(ma_device *pDevice, void *pFramesOut, const 
 
 // This is the main mixing function. Mixing is pretty simple in this project - it's just an accumulation.
 // NOTE: framesOut is both an input and an output. It will be initially filled with zeros outside of this function.
-static void MixAudioFrames(float *framesOut, const float *framesIn, ma_uint32 frameCount, float localVolume)
+static void MixAudioFrames(float *framesOut, const float *framesIn, ma_uint32 frameCount, AudioBuffer *buffer)
 {
-    for (ma_uint32 iFrame = 0; iFrame < frameCount; ++iFrame)
-    {
-        for (ma_uint32 iChannel = 0; iChannel < AUDIO.System.device.playback.channels; ++iChannel)
-        {
-            float *frameOut = framesOut + (iFrame*AUDIO.System.device.playback.channels);
-            const float *frameIn = framesIn + (iFrame*AUDIO.System.device.playback.channels);
+    const float localVolume = buffer->volume;
 
-            frameOut[iChannel] += (frameIn[iChannel]*localVolume);
+    const ma_uint32 nChannels = AUDIO.System.device.playback.channels;
+    if (nChannels == 2)
+    {
+        const float left = buffer->pan;
+        const float right = 1.0f - left;
+
+        // fast sine approximation in [0..1] for pan law: y = 0.5f * x * (3 - x * x);
+        const float levels[2] = { localVolume*0.5f*left*(3.0f-left*left), localVolume*0.5f*right*(3.0f-right*right) };
+
+        float *frameOut = framesOut;
+        const float *frameIn = framesIn;
+        for (ma_uint32 iFrame = 0; iFrame < frameCount; ++iFrame)
+        {
+            frameOut[0] += (frameIn[0]*levels[0]);
+            frameOut[1] += (frameIn[1]*levels[1]);
+            frameOut += 2;
+            frameIn += 2;
+        }
+    }
+    else // pan is kinda meaningless
+    {
+        for (ma_uint32 iFrame = 0; iFrame < frameCount; ++iFrame)
+        {
+            for (ma_uint32 iChannel = 0; iChannel < nChannels; ++iChannel)
+            {
+                float *frameOut = framesOut + (iFrame * nChannels);
+                const float *frameIn = framesIn + (iFrame * nChannels);
+
+                frameOut[iChannel] += (frameIn[iChannel] * localVolume);
+            }
         }
     }
 }

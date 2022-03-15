@@ -42,7 +42,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2013-2021 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2013-2022 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -133,7 +133,7 @@
 #if defined(SUPPORT_FILEFORMAT_QOI)
     #define QOI_MALLOC RL_MALLOC
     #define QOI_FREE RL_FREE
-    
+
     #define QOI_IMPLEMENTATION
     #include "external/qoi.h"
 #endif
@@ -375,7 +375,7 @@ Image LoadImageFromMemory(const char *fileType, const unsigned char *fileData, i
     }
 #endif
 #if defined(SUPPORT_FILEFORMAT_QOI)
-    else if (strcmp(fileType, ".qoi") == 0) 
+    else if (strcmp(fileType, ".qoi") == 0)
     {
         qoi_desc desc = { 0 };
         image.data = qoi_decode(fileData, dataSize, &desc, 4);
@@ -500,7 +500,8 @@ bool ExportImage(Image image, const char *fileName)
     else if (IsFileExtension(fileName, ".tga")) success = stbi_write_tga(fileName, image.width, image.height, channels, imgData);
 #endif
 #if defined(SUPPORT_FILEFORMAT_JPG)
-    else if (IsFileExtension(fileName, ".jpg")) success = stbi_write_jpg(fileName, image.width, image.height, channels, imgData, 90);  // JPG quality: between 1 and 100
+    else if (IsFileExtension(fileName, ".jpg") ||
+             IsFileExtension(fileName, ".jpeg")) success = stbi_write_jpg(fileName, image.width, image.height, channels, imgData, 90);  // JPG quality: between 1 and 100
 #endif
 #if defined(SUPPORT_FILEFORMAT_QOI)
     else if (IsFileExtension(fileName, ".qoi"))
@@ -509,11 +510,11 @@ bool ExportImage(Image image, const char *fileName)
         if (image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8) channels = 3;
         else if (image.format == PIXELFORMAT_UNCOMPRESSED_R8G8B8A8) channels = 4;
         else TRACELOG(LOG_WARNING, "IMAGE: Image pixel format must be R8G8B8 or R8G8B8A8");
-        
+
         if ((channels == 3) || (channels == 4))
         {
             qoi_desc desc = { 0 };
-            desc.width = image.width; 
+            desc.width = image.width;
             desc.height = image.height;
             desc.channels = channels;
             desc.colorspace = QOI_SRGB;
@@ -566,7 +567,7 @@ bool ExportImageAsCode(Image image, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "// more info and bugs-report:  github.com/raysan5/raylib                              //\n");
     byteCount += sprintf(txtData + byteCount, "// feedback and support:       ray[at]raylib.com                                      //\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                                    //\n");
-    byteCount += sprintf(txtData + byteCount, "// Copyright (c) 2018-2021 Ramon Santamaria (@raysan5)                                //\n");
+    byteCount += sprintf(txtData + byteCount, "// Copyright (c) 2018-2022 Ramon Santamaria (@raysan5)                                //\n");
     byteCount += sprintf(txtData + byteCount, "//                                                                                    //\n");
     byteCount += sprintf(txtData + byteCount, "////////////////////////////////////////////////////////////////////////////////////////\n\n");
 
@@ -592,8 +593,8 @@ bool ExportImageAsCode(Image image, const char *fileName)
 
 #endif      // SUPPORT_IMAGE_EXPORT
 
-    if (success != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image exported successfully", fileName);
-    else TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to export image", fileName);
+    if (success != 0) TRACELOG(LOG_INFO, "FILEIO: [%s] Image as code exported successfully", fileName);
+    else TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to export image as code", fileName);
 
     return success;
 }
@@ -2769,6 +2770,9 @@ void ImageDraw(Image *dst, Image src, Rectangle srcRec, Rectangle dstRec, Color 
         //    [x] Consider fast path: no alpha blending required cases (src has no alpha)
         //    [x] Consider fast path: same src/dst format with no alpha -> direct line copy
         //    [-] GetPixelColor(): Get Vector4 instead of Color, easier for ColorAlphaBlend()
+        //    [ ] Support f32bit channels drawing
+
+        // TODO: Support PIXELFORMAT_UNCOMPRESSED_R32, PIXELFORMAT_UNCOMPRESSED_R32G32B32, PIXELFORMAT_UNCOMPRESSED_R32G32B32A32
 
         Color colSrc, colDst, blend;
         bool blendRequired = true;
@@ -2905,6 +2909,7 @@ TextureCubemap LoadTextureCubemap(Image image, int layout)
         cubemap.height = cubemap.width;
     }
 
+    // Layout provided or already auto-detected
     if (layout != CUBEMAP_LAYOUT_AUTO_DETECT)
     {
         int size = cubemap.width;
@@ -2915,8 +2920,7 @@ TextureCubemap LoadTextureCubemap(Image image, int layout)
 
         if (layout == CUBEMAP_LAYOUT_LINE_VERTICAL)
         {
-            faces = image;
-            for (int i = 0; i < 6; i++) faceRecs[i].y = (float)size*i;
+            faces = ImageCopy(image);       // Image data already follows expected convention
         }
         else if (layout == CUBEMAP_LAYOUT_PANORAMA)
         {
@@ -2950,10 +2954,12 @@ TextureCubemap LoadTextureCubemap(Image image, int layout)
             ImageFormat(&faces, image.format);
 
             // NOTE: Image formating does not work with compressed textures
+
+            for (int i = 0; i < 6; i++) ImageDraw(&faces, image, faceRecs[i], (Rectangle){ 0, (float)size*i, (float)size, (float)size }, WHITE);
         }
 
-        for (int i = 0; i < 6; i++) ImageDraw(&faces, image, faceRecs[i], (Rectangle){ 0, (float)size*i, (float)size, (float)size }, WHITE);
-
+        // NOTE: Cubemap data is expected to be provided as 6 images in a single data array,
+        // one after the other (that's a vertical image), following convention: +X, -X, +Y, -Y, +Z, -Z
         cubemap.id = rlLoadTextureCubemap(faces.data, size, faces.format);
         if (cubemap.id == 0) TRACELOG(LOG_WARNING, "IMAGE: Failed to load cubemap image");
 
@@ -4319,6 +4325,7 @@ static Image LoadPKM(const unsigned char *fileData, unsigned int fileSize)
 
 #if defined(SUPPORT_FILEFORMAT_KTX)
 // Load KTX compressed image data (ETC1/ETC2 compression)
+// TODO: Review KTX loading, many things changed!
 static Image LoadKTX(const unsigned char *fileData, unsigned int fileSize)
 {
     unsigned char *fileDataPtr = (unsigned char *)fileData;
@@ -4393,6 +4400,8 @@ static Image LoadKTX(const unsigned char *fileData, unsigned int fileSize)
             if (ktxHeader->glInternalFormat == 0x8D64) image.format = PIXELFORMAT_COMPRESSED_ETC1_RGB;
             else if (ktxHeader->glInternalFormat == 0x9274) image.format = PIXELFORMAT_COMPRESSED_ETC2_RGB;
             else if (ktxHeader->glInternalFormat == 0x9278) image.format = PIXELFORMAT_COMPRESSED_ETC2_EAC_RGBA;
+
+            // TODO: Support uncompressed data formats? Right now it returns format = 0!
         }
     }
 
@@ -4401,11 +4410,12 @@ static Image LoadKTX(const unsigned char *fileData, unsigned int fileSize)
 
 // Save image data as KTX file
 // NOTE: By default KTX 1.1 spec is used, 2.0 is still on draft (01Oct2018)
+// TODO: Review KTX saving, many things changed!
 static int SaveKTX(Image image, const char *fileName)
 {
     // KTX file Header (64 bytes)
     // v1.1 - https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
-    // v2.0 - http://github.khronos.org/KTX-Specification/ - still on draft, not ready for implementation
+    // v2.0 - http://github.khronos.org/KTX-Specification/ - Final specs by 2021-04-18
     typedef struct {
         char id[12];                        // Identifier: "«KTX 11»\r\n\x1A\n"             // KTX 2.0: "«KTX 22»\r\n\x1A\n"
         unsigned int endianness;            // Little endian: 0x01 0x02 0x03 0x04
