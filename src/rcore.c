@@ -3645,6 +3645,11 @@ void SetMouseScale(float scaleX, float scaleY)
     CORE.Input.Mouse.scale = (Vector2){ scaleX, scaleY };
 }
 
+void SetMouseWheelMove (float inc)
+{
+  CORE.Input.Mouse.currentWheelMove = inc;
+}
+
 // Get mouse wheel movement Y
 float GetMouseWheelMove(void)
 {

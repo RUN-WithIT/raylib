@@ -163,7 +163,8 @@ void SetCameraMoveControls(int keyFront, int keyBack,
 #define CAMERA_FREE_PANNING_DIVIDER                     5.1f
 
 // ORBITAL_CAMERA
-#define CAMERA_ORBITAL_SPEED                            0.01f       // Radians per frame
+//#define CAMERA_ORBITAL_SPEED                            0.01f       // Radians per frame
+#define CAMERA_ORBITAL_SPEED                            0.0025f       // Radians per frame
 
 // FIRST_PERSON
 //#define CAMERA_FIRST_PERSON_MOUSE_SENSITIVITY           0.003f
@@ -246,6 +247,16 @@ static Vector2 GetMousePosition() { return (Vector2){ 0.0f, 0.0f }; }
 //----------------------------------------------------------------------------------
 // Module Functions Definition
 //----------------------------------------------------------------------------------
+
+void SetCameraYAngle (float degrees)
+{
+  CAMERA.angle.y = DEG2RAD*degrees;
+}
+
+float GetCameraYAngle ()
+{
+  return (CAMERA.angle.y * RAD2DEG);
+}
 
 // Select camera mode (multiple camera modes available)
 void SetCameraMode(Camera camera, int mode)
