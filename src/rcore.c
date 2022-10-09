@@ -112,6 +112,9 @@
 *
 **********************************************************************************************/
 
+// dab
+float g_orbital_speed = 0.0025;
+
 #include "raylib.h"                 // Declares module functions
 
 // Check if config flags have been externally provided on compilation line

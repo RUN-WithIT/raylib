@@ -164,7 +164,20 @@ void SetCameraMoveControls(int keyFront, int keyBack,
 
 // ORBITAL_CAMERA
 //#define CAMERA_ORBITAL_SPEED                            0.01f       // Radians per frame
-#define CAMERA_ORBITAL_SPEED                            0.0025f       // Radians per frame
+// dab
+extern float g_orbital_speed;
+#define CAMERA_ORBITAL_SPEED                            g_orbital_speed
+
+void SetCameraOrbitalSpeed (float degrees)
+{
+  g_orbital_speed = DEG2RAD*degrees;
+}
+
+float GetCameraOrbitalSpeed ()
+{
+  return (g_orbital_speed*RAD2DEG);
+}
+
 
 // FIRST_PERSON
 //#define CAMERA_FIRST_PERSON_MOUSE_SENSITIVITY           0.003f
@@ -272,6 +285,9 @@ void SetCameraMode(Camera camera, int mode)
 
     // Camera angle calculation
     CAMERA.angle.x = atan2f(dx, dz);                        // Camera angle in plane XZ (0 aligned with Z, move positive CCW)
+    if (mode == CAMERA_ORBITAL)
+      CAMERA.angle.x += (DEG2RAD*180.0);
+      
     CAMERA.angle.y = atan2f(dy, sqrtf(dx*dx + dz*dz));      // Camera angle in plane XY (0 aligned with X, move positive CW)
 
     CAMERA.playerEyesPosition = camera.position.y;          // Init player eyes position to camera Y position
@@ -413,7 +429,7 @@ void UpdateCamera(Camera *camera)
         } break;
         case CAMERA_ORBITAL:        // Camera just orbits around target, only zoom allowed
         {
-            CAMERA.angle.x += CAMERA_ORBITAL_SPEED;      // Camera orbit angle
+          CAMERA.angle.x += CAMERA_ORBITAL_SPEED;      // Camera orbit angle
             CAMERA.targetDistance -= (mouseWheelMove*CAMERA_MOUSE_SCROLL_SENSITIVITY);   // Camera zoom
 
             // Camera distance clamp

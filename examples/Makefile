@@ -501,13 +501,15 @@ PHYSICS = \
     physics/physics_restitution \
     physics/physics_shatter
 
+OTHERS = \
+    others/raylib_opengl_interop
 
 CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 
 # Define processes to execute
 #------------------------------------------------------------------------------------------------
 # Default target entry
-all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(PHYSICS)
+all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(PHYSICS) $(OTHERS)
 
 core: $(CORE)
 shapes: $(SHAPES)
@@ -517,6 +519,7 @@ models: $(MODELS)
 shaders: $(SHADERS)
 audio: $(AUDIO)
 physics: $(PHYSICS)
+others: $(OTHERS)
 
 # Generic compilation pattern
 # NOTE: Examples must be ready for Android compilation!

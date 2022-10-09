@@ -40,7 +40,7 @@
     #define GLSL_VERSION            100
 #endif
 
-#define MAX_PARTICLES       1000
+#define MAX_PARTICLES       100000
 
 // Particle type
 typedef struct Particle {
