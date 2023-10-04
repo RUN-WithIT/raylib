@@ -457,16 +457,45 @@ void SetCameraYAngle (Camera *camera, float degrees)
 {
   CameraPitch(camera, DEG2RAD*degrees, 1, 1, 0);
 }
+void GetXAndYAngle(Camera *camera, double *yangle, double *xangle, double *target_distance)
+{
+    Vector3 v1 = camera->position;
+    Vector3 v2 = camera->target;
+    double distance = 0.0;
+
+    float dx = v2.x - v1.x;
+    float dy = v2.y - v1.y;
+    float dz = v2.z - v1.z;
+
+    distance = sqrtf(dx*dx + dy*dy + dz*dz);   // Distance to target
+    if (target_distance)
+      *target_distance = distance;
+
+    if (xangle)
+      *xangle = atan2f(dx, dz);
+      
+    if (yangle)
+      *yangle = atan2f(dy, sqrtf(dx*dx + dz*dz));
+
+    return;
+}
 
 float GetCameraYAngle (Camera *camera)
 {
-  return (((Vector3Angle(camera->position, camera->target))*RAD2DEG)-0.001f);
+  double retval = 0.0;
+
+  GetXAndYAngle(camera, &retval, NULL, NULL);
+
+  return (float)retval;
 }
 
 void SetCameraMode(Camera *camera, int mode)
 {
   UpdateCamera(camera, mode);
 }
+
+#define CAMERA_FREE_PANNING_DIVIDER                     5.1f
+#define CAMERA_FREE_MOUSE_SENSITIVITY                   0.01f
 
 #if !defined(RCAMERA_STANDALONE)
 // Update camera position for selected mode
@@ -501,8 +530,21 @@ void UpdateCamera(Camera *camera, int mode)
         // Camera movement
         if (!IsGamepadAvailable(0))
         {
+          // dab from the old camera controls 
             // Camera pan (for CAMERA_FREE)
-            if ((mode == CAMERA_FREE || mode == CAMERA_THIRD_PERSON) && (IsMouseButtonDown(1)))
+          if ((mode == CAMERA_THIRD_PERSON) && (IsMouseButtonDown(1)))
+            {
+              double angle_y = 0.0;
+              double angle_x = 0.0;
+              double target_distance = 0.0;
+
+              GetXAndYAngle(camera, &angle_y, &angle_x, &target_distance);
+              camera->target.x += ((mousePositionDelta.x*CAMERA_FREE_MOUSE_SENSITIVITY)*cosf(angle_x) + (mousePositionDelta.y*-CAMERA_FREE_MOUSE_SENSITIVITY)*sinf(angle_x)*sinf(angle_y))*(target_distance/CAMERA_FREE_PANNING_DIVIDER);
+              camera->target.y += ((mousePositionDelta.y*CAMERA_FREE_MOUSE_SENSITIVITY)*cosf(angle_y))*(target_distance/CAMERA_FREE_PANNING_DIVIDER);
+              camera->target.z += ((mousePositionDelta.x*-CAMERA_FREE_MOUSE_SENSITIVITY)*sinf(angle_x) + (mousePositionDelta.y*-CAMERA_FREE_MOUSE_SENSITIVITY)*cosf(angle_x)*sinf(angle_y))*(target_distance/CAMERA_FREE_PANNING_DIVIDER);
+            }
+
+            if ((mode == CAMERA_FREE) && (IsMouseButtonDown(1)))
             {
                 const Vector2 mouseDelta = GetMouseDelta();
                 if (mouseDelta.x > 0.0f) CameraMoveRight(camera, CAMERA_PAN_SPEED, moveInWorldPlane);
