@@ -509,7 +509,7 @@ PHYSICS = \
     physics/physics_shatter
 
 OTHERS = \
-    others/raylib_opengl_interop
+    others/cubes
 
 CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 
@@ -517,6 +517,11 @@ CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 #------------------------------------------------------------------------------------------------
 # Default target entry
 all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(PHYSICS) $(OTHERS)
+
+run:
+	rm -f others/cubes
+	make others/cubes
+	cd others ; ./cubes
 
 core: $(CORE)
 shapes: $(SHAPES)

@@ -3778,7 +3778,7 @@ void SetMouseScale(float scaleX, float scaleY)
 
 void SetMouseWheelMove (float inc)
 {
-  CORE.Input.Mouse.currentWheelMove = inc;
+  CORE.Input.Mouse.currentWheelMove.y = inc;
 }
 
 // Get mouse wheel movement Y
