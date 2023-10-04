@@ -204,35 +204,8 @@ RLAPI Matrix GetCameraProjectionMatrix(Camera* camera, float aspect);
 #define CAMERA_MOUSE_MOVE_SENSITIVITY                   0.003f     // TODO: it should be independant of framerate
 #define CAMERA_MOUSE_SCROLL_SENSITIVITY                 1.5f
 
-// FREE_CAMERA
-/* dab
-#define CAMERA_FREE_MOUSE_SENSITIVITY                   0.01f
-#define CAMERA_FREE_DISTANCE_MIN_CLAMP                  0.3f
-#define CAMERA_FREE_DISTANCE_MAX_CLAMP                  120.0f
-#define CAMERA_FREE_MIN_CLAMP                           85.0f
-#define CAMERA_FREE_MAX_CLAMP                          -85.0f
-#define CAMERA_FREE_SMOOTH_ZOOM_SENSITIVITY             0.05f
-#define CAMERA_FREE_PANNING_DIVIDER                     5.1f
-*/
-
-// ORBITAL_CAMERA
-/* this is the default */
+// dab
 //#define CAMERA_ORBITAL_SPEED                            0.5f       // Radians per second
-/* this was my default */
-//#define CAMERA_ORBITAL_SPEED                            0.01f       // Radians per frame
-/* here's where I made it controllable */
-extern float g_orbital_speed;
-#define CAMERA_ORBITAL_SPEED                            g_orbital_speed
-
-void SetCameraOrbitalSpeed (float degrees)
-{
-  g_orbital_speed = DEG2RAD*degrees;
-}
-
-float GetCameraOrbitalSpeed ()
-{
-  return (g_orbital_speed*RAD2DEG);
-}
 
 
 #define CAMERA_FIRST_PERSON_STEP_TRIGONOMETRIC_DIVIDER  8.0f
@@ -260,50 +233,10 @@ float GetCameraOrbitalSpeed ()
 //----------------------------------------------------------------------------------
 // Module Functions Definition
 //----------------------------------------------------------------------------------
-<<<<<<< HEAD
-
-void SetCameraYAngle (float degrees)
-{
-  CAMERA.angle.y = DEG2RAD*degrees;
-}
-
-float GetCameraYAngle ()
-{
-  return (CAMERA.angle.y * RAD2DEG);
-}
-
-// Select camera mode (multiple camera modes available)
-void SetCameraMode(Camera camera, int mode)
-{
-    Vector3 v1 = camera.position;
-    Vector3 v2 = camera.target;
-
-    float dx = v2.x - v1.x;
-    float dy = v2.y - v1.y;
-    float dz = v2.z - v1.z;
-
-    CAMERA.targetDistance = sqrtf(dx*dx + dy*dy + dz*dz);   // Distance to target
-
-    // Camera angle calculation
-    CAMERA.angle.x = atan2f(dx, dz);                        // Camera angle in plane XZ (0 aligned with Z, move positive CCW)
-    if (mode == CAMERA_ORBITAL)
-      CAMERA.angle.x += (DEG2RAD*180.0);
-      
-    CAMERA.angle.y = atan2f(dy, sqrtf(dx*dx + dz*dz));      // Camera angle in plane XY (0 aligned with X, move positive CW)
-
-    CAMERA.playerEyesPosition = camera.position.y;          // Init player eyes position to camera Y position
-
-    // Lock cursor for first person and third person cameras
-    if ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON)) DisableCursor();
-    else EnableCursor();
-
-    CAMERA.mode = mode;
-=======
 // Returns the cameras forward vector (normalized)
 Vector3 GetCameraForward(Camera *camera)
 {
     return Vector3Normalize(Vector3Subtract(camera->target, camera->position));
->>>>>>> bc15c19518968878b68bbfe8eac3fe4297f11770
 }
 
 // Returns the cameras up vector (normalized)
@@ -506,6 +439,33 @@ Matrix GetCameraProjectionMatrix(Camera *camera, float aspect)
     }
 
     return MatrixIdentity();
+}
+
+extern float g_orbital_speed;
+#define CAMERA_ORBITAL_SPEED                            g_orbital_speed
+void SetCameraOrbitalSpeed (float degrees)
+{
+  g_orbital_speed = DEG2RAD*degrees;
+}
+
+float GetCameraOrbitalSpeed ()
+{
+  return (g_orbital_speed*RAD2DEG);
+}
+
+void SetCameraYAngle (Camera *camera, float degrees)
+{
+  CameraPitch(camera, DEG2RAD*degrees, 1, 1, 0);
+}
+
+float GetCameraYAngle (Camera *camera)
+{
+  return (((Vector3Angle(camera->position, camera->target))*RAD2DEG)-0.001f);
+}
+
+void SetCameraMode(Camera *camera, int mode)
+{
+  UpdateCamera(camera, mode);
 }
 
 #if !defined(RCAMERA_STANDALONE)
