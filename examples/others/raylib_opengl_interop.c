@@ -9,7 +9,7 @@
 *   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
 *   BSD-like license that allows static linking with closed source software
 *
-*   Copyright (c) 2021-2022 Stephan Soller (@arkanis) and Ramon Santamaria (@raysan5)
+*   Copyright (c) 2021-2023 Stephan Soller (@arkanis) and Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************
 *
@@ -26,22 +26,29 @@
 
 #include "raylib.h"
 
-#include "rlgl.h"           // Required for: rlDrawRenderBatchActive(), rlGetMatrixModelview(), rlGetMatrixProjection()
-#if defined(__APPLE__)
-    #include <OpenGL/gl3.h>     // OpenGL 3 library for OSX
-    #include <OpenGL/gl3ext.h>  // OpenGL 3 extensions library for OSX
-#else
-    #include "glad.h"       // Required for: OpenGL functionality 
-#endif
-#include "raymath.h"        // Required for: MatrixMultiply(), MatrixToFloat()
-
 #if defined(PLATFORM_DESKTOP)
-    #define GLSL_VERSION            330
-#else   // PLATFORM_RPI, PLATFORM_ANDROID, PLATFORM_WEB
+    #if defined(GRAPHICS_API_OPENGL_ES2)
+        #include "glad_gles2.h"       // Required for: OpenGL functionality 
+        #define glGenVertexArrays glGenVertexArraysOES
+        #define glBindVertexArray glBindVertexArrayOES
+        #define glDeleteVertexArrays glDeleteVertexArraysOES
+        #define GLSL_VERSION            100
+    #else
+        #if defined(__APPLE__)
+            #include <OpenGL/gl3.h>     // OpenGL 3 library for OSX
+            #include <OpenGL/gl3ext.h>  // OpenGL 3 extensions library for OSX
+        #else
+            #include "glad.h"       // Required for: OpenGL functionality 
+        #endif
+        #define GLSL_VERSION            330
+    #endif
+#else   // PLATFORM_ANDROID, PLATFORM_WEB
     #define GLSL_VERSION            100
 #endif
 
 #define MAX_PARTICLES       100000
+#include "rlgl.h"           // Required for: rlDrawRenderBatchActive(), rlGetMatrixModelview(), rlGetMatrixProjection()
+#include "raymath.h"        // Required for: MatrixMultiply(), MatrixToFloat()
 
 // Particle type
 typedef struct Particle {
@@ -97,7 +104,9 @@ int main(void)
     glBindVertexArray(0);
 
     // Allows the vertex shader to set the point size of each particle individually
+    #ifndef GRAPHICS_API_OPENGL_ES2
     glEnable(GL_PROGRAM_POINT_SIZE);
+    #endif
 
     SetTargetFPS(60);
     //--------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 #
 #   raylib makefile for Desktop platforms, Raspberry Pi, Android and HTML5
 #
-#   Copyright (c) 2013-2022 Ramon Santamaria (@raysan5)
+#   Copyright (c) 2013-2023 Ramon Santamaria (@raysan5)
 #
 #   This software is provided "as-is", without any express or implied warranty. In no event
 #   will the authors be held liable for any damages arising from the use of this software.
@@ -25,12 +25,12 @@
 
 # Define required environment variables
 #------------------------------------------------------------------------------------------------
-# Define target platform: PLATFORM_DESKTOP, PLATFORM_RPI, PLATFORM_DRM, PLATFORM_ANDROID, PLATFORM_WEB
+# Define target platform: PLATFORM_DESKTOP, PLATFORM_DRM, PLATFORM_ANDROID, PLATFORM_WEB
 PLATFORM              ?= PLATFORM_DESKTOP
 
 # Define required raylib variables
 PROJECT_NAME          ?= raylib_examples
-RAYLIB_VERSION        ?= 4.2.0
+RAYLIB_VERSION        ?= 4.5.0
 RAYLIB_PATH           ?= ..
 
 # Locations of raylib.h and libraylib.a/libraylib.so
@@ -51,17 +51,15 @@ USE_EXTERNAL_GLFW     ?= FALSE
 # NOTE: This variable is only used for PLATFORM_OS: LINUX
 USE_WAYLAND_DISPLAY   ?= FALSE
 
-# Use cross-compiler for PLATFORM_RPI
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    USE_RPI_CROSS_COMPILER ?= FALSE
-    ifeq ($(USE_RPI_CROSS_COMPILER),TRUE)
-        RPI_TOOLCHAIN ?= C:/SysGCC/Raspberry
-        RPI_TOOLCHAIN_SYSROOT ?= $(RPI_TOOLCHAIN)/arm-linux-gnueabihf/sysroot
-    endif
-endif
+# PLATFORM_WEB: Default properties
+BUILD_WEB_ASYNCIFY    ?= TRUE
+BUILD_WEB_SHELL       ?= $(RAYLIB_PATH)/src/minshell.html
+BUILD_WEB_HEAP_SIZE   ?= 134217728
+BUILD_WEB_RESOURCES   ?= TRUE
+BUILD_WEB_RESOURCES_PATH  ?= $(dir $<)resources@resources
 
-# Determine PLATFORM_OS in case PLATFORM_DESKTOP selected
-ifeq ($(PLATFORM),PLATFORM_DESKTOP)
+# Determine PLATFORM_OS in case PLATFORM_DESKTOP or PLATFORM_WEB selected
+ifeq ($(PLATFORM),$(filter $(PLATFORM),PLATFORM_DESKTOP PLATFORM_WEB))
     # No uname.exe on MinGW!, but OS=Windows_NT on Windows!
     # ifeq ($(UNAME),Msys) -> Windows
     ifeq ($(OS),Windows_NT)
@@ -88,12 +86,6 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         endif
     endif
 endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    UNAMEOS = $(shell uname)
-    ifeq ($(UNAMEOS),Linux)
-        PLATFORM_OS = LINUX
-    endif
-endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
     UNAMEOS = $(shell uname)
     ifeq ($(UNAMEOS),Linux)
@@ -111,24 +103,23 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
 endif
 
 # Default path for raylib on Raspberry Pi
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    RAYLIB_PATH        ?= /home/pi/raylib
-endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
     RAYLIB_PATH        ?= /home/pi/raylib
 endif
 
 # Define raylib release directory for compiled library
-RAYLIB_RELEASE_PATH 	?= $(RAYLIB_PATH)/src
+RAYLIB_RELEASE_PATH    ?= $(RAYLIB_PATH)/src
 
 ifeq ($(PLATFORM),PLATFORM_WEB)
-    # Emscripten required variables
-    EMSDK_PATH         ?= C:/emsdk
-    EMSCRIPTEN_PATH    ?= $(EMSDK_PATH)/upstream/emscripten
-    CLANG_PATH          = $(EMSDK_PATH)/upstream/bin
-    PYTHON_PATH         = $(EMSDK_PATH)/python/3.9.2-1_64bit
-    NODE_PATH           = $(EMSDK_PATH)/node/14.15.5_64bit/bin
-    export PATH         = $(EMSDK_PATH);$(EMSCRIPTEN_PATH);$(CLANG_PATH);$(NODE_PATH);$(PYTHON_PATH):$$(PATH)
+    ifeq ($(PLATFORM_OS),WINDOWS)
+        # Emscripten required variables
+		EMSDK_PATH         ?= C:/emsdk
+		EMSCRIPTEN_PATH    ?= $(EMSDK_PATH)/upstream/emscripten
+		CLANG_PATH          = $(EMSDK_PATH)/upstream/bin
+		PYTHON_PATH         = $(EMSDK_PATH)/python/3.9.2-1_64bit
+		NODE_PATH           = $(EMSDK_PATH)/node/14.15.5_64bit/bin
+		export PATH         = $(EMSDK_PATH);$(EMSCRIPTEN_PATH);$(CLANG_PATH);$(NODE_PATH);$(PYTHON_PATH):$$(PATH)
+    endif
 endif
 
 # Define default C compiler: CC
@@ -143,13 +134,6 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),BSD)
         # FreeBSD, OpenBSD, NetBSD, DragonFly default compiler
         CC = clang
-    endif
-endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    ifeq ($(USE_RPI_CROSS_COMPILER),TRUE)
-        # Define RPI cross-compiler
-        #CC = armv6j-hardfloat-linux-gnueabi-gcc
-        CC = $(RPI_TOOLCHAIN)/bin/arm-linux-gnueabihf-gcc
     endif
 endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
@@ -195,9 +179,13 @@ ifeq ($(BUILD_MODE),DEBUG)
     endif
 else
     ifeq ($(PLATFORM),PLATFORM_WEB)
-        CFLAGS += -Os
+        ifeq ($(BUILD_WEB_ASYNCIFY),TRUE)
+            CFLAGS += -O3
+        else
+            CFLAGS += -Os
+        endif
     else
-        CFLAGS += -s -O1
+        CFLAGS += -O2
     endif
 endif
 
@@ -218,9 +206,6 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         endif
     endif
 endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    CFLAGS += -std=gnu99
-endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
     CFLAGS += -std=gnu99 -DEGL_NO_X11
 endif
@@ -239,13 +224,13 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         INCLUDE_PATHS += -I$(RAYLIB_INCLUDE_PATH)
     endif
 endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    INCLUDE_PATHS += -I$(RPI_TOOLCHAIN_SYSROOT)/opt/vc/include
-    INCLUDE_PATHS += -I$(RPI_TOOLCHAIN_SYSROOT)/opt/vc/include/interface/vmcs_host/linux
-    INCLUDE_PATHS += -I$(RPI_TOOLCHAIN_SYSROOT)/opt/vc/include/interface/vcos/pthreads
-endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
     INCLUDE_PATHS += -I/usr/include/libdrm
+endif
+
+# Include GLFW required for examples/others/rlgl_standalone.c
+ifeq ($(USE_EXTERNAL_GLFW),FALSE)
+all others: INCLUDE_PATHS += -I$(RAYLIB_PATH)/src/external/glfw/include
 endif
 
 # Define library paths containing required libs: LDFLAGS
@@ -283,19 +268,32 @@ ifeq ($(PLATFORM),PLATFORM_WEB)
     # --memory-init-file 0       # to avoid an external memory initialization code file (.mem)
     # --preload-file resources   # specify a resources folder for data compilation
     # --source-map-base          # allow debugging in browser with source map
-    LDFLAGS += -s USE_GLFW=3 -s ASYNCIFY -s TOTAL_MEMORY=67108864 -s FORCE_FILESYSTEM=1 --preload-file $(dir $<)resources@resources
+    LDFLAGS += -s USE_GLFW=3 -s TOTAL_MEMORY=$(BUILD_WEB_HEAP_SIZE) -s FORCE_FILESYSTEM=1
+
+    # Build using asyncify
+    ifeq ($(BUILD_WEB_ASYNCIFY),TRUE)
+        LDFLAGS += -s ASYNCIFY
+    endif
+
+    # Add resources building if required
+    ifeq ($(BUILD_WEB_RESOURCES),TRUE)
+        LDFLAGS += --preload-file $(BUILD_WEB_RESOURCES_PATH)
+    endif
+
+    # Add debug mode flags if required
+    ifeq ($(BUILD_MODE),DEBUG)
+        LDFLAGS += -s ASSERTIONS=1 --profiling
+    endif
+
+    # Define a custom shell .html and output extension
+    LDFLAGS += --shell-file $(BUILD_WEB_SHELL)
+    EXT = .html
 
     # NOTE: Simple raylib examples are compiled to be interpreter with asyncify, that way,
     # we can compile same code for ALL platforms with no change required, but, working on bigger
     # projects, code needs to be refactored to avoid a blocking while() loop, moving Update and Draw
     # logic to a self contained function: UpdateDrawFrame(), check core_basic_window_web.c for reference.
 
-    # Define a custom shell .html and output extension
-    LDFLAGS += --shell-file $(RAYLIB_PATH)/src/shell.html
-    EXT = .html
-endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    LDFLAGS += -L$(RPI_TOOLCHAIN_SYSROOT)/opt/vc/lib
 endif
 
 # Define libraries required on linking: LDLIBS
@@ -325,8 +323,8 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         ifeq ($(RAYLIB_LIBTYPE),SHARED)
             LDLIBS += -lc
         endif
-        
-        # TODO: On ARM 32bit arch, miniaudio requires atomics library
+
+        # NOTE: On ARM 32bit arch, miniaudio requires atomics library
         LDLIBS += -latomic
     endif
     ifeq ($(PLATFORM_OS),OSX)
@@ -345,14 +343,6 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(USE_EXTERNAL_GLFW),TRUE)
         # NOTE: It could require additional packages installed: libglfw3-dev
         LDLIBS += -lglfw
-    endif
-endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-    # Libraries for Raspberry Pi compiling
-    # NOTE: Required packages: libasound2-dev (ALSA)
-    LDLIBS = -lraylib -lbrcmGLESv2 -lbrcmEGL -lpthread -lrt -lm -lbcm_host -ldl -latomic
-    ifeq ($(USE_RPI_CROSS_COMPILER),TRUE)
-        LDLIBS += -lvchiq_arm -lvcos
     endif
 endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
@@ -376,12 +366,15 @@ CORE = \
     core/core_input_gamepad \
     core/core_input_multitouch \
     core/core_input_gestures \
+    core/core_input_gestures_web \
     core/core_2d_camera \
     core/core_2d_camera_platformer \
     core/core_2d_camera_mouse_zoom \
+    core/core_2d_camera_split_screen \
     core/core_3d_camera_mode \
     core/core_3d_camera_free \
     core/core_3d_camera_first_person \
+    core/core_3d_camera_split_screen \
     core/core_3d_picking \
     core/core_world_screen \
     core/core_custom_logging \
@@ -394,7 +387,6 @@ CORE = \
     core/core_window_flags \
     core/core_window_letterbox \
     core/core_window_should_close \
-    core/core_split_screen \
     core/core_smooth_pixelperfect \
     core/core_custom_frame_control
 
@@ -424,6 +416,7 @@ TEXTURES = \
     textures/textures_image_generation \
     textures/textures_image_loading \
     textures/textures_image_processing \
+    textures/textures_image_rotate \
     textures/textures_image_text \
     textures/textures_to_image \
     textures/textures_raw_data \
@@ -433,12 +426,14 @@ TEXTURES = \
     textures/textures_sprite_anim \
     textures/textures_sprite_button \
     textures/textures_sprite_explosion \
+    textures/textures_textured_curve \
     textures/textures_bunnymark \
     textures/textures_blend_modes \
     textures/textures_draw_tiled \
     textures/textures_polygon \
     textures/textures_gif_player \
-    textures/textures_fog_of_war
+    textures/textures_fog_of_war \
+    textures/textures_svg_loading
 
 TEXT = \
     text/text_raylib_fonts \
@@ -459,6 +454,7 @@ MODELS = \
     models/models_billboard \
     models/models_box_collisions \
     models/models_cubicmap \
+    models/models_draw_cube_texture \
     models/models_first_person_maze \
     models/models_geometric_shapes \
     models/models_mesh_generation \
@@ -491,15 +487,21 @@ SHADERS = \
     shaders/shaders_simple_mask \
     shaders/shaders_spotlight \
     shaders/shaders_hot_reloading \
+    shaders/shaders_lightmap \
     shaders/shaders_mesh_instancing \
-    shaders/shaders_multi_sample2d
+    shaders/shaders_multi_sample2d \
+    shaders/shaders_write_depth \
+    shaders/shaders_hybrid_render
 
 AUDIO = \
     audio/audio_module_playing \
     audio/audio_music_stream \
     audio/audio_raw_stream \
     audio/audio_sound_loading \
-    audio/audio_multichannel_sound
+    audio/audio_multichannel_sound \
+    audio/audio_sound_multi \
+    audio/audio_stream_effects \
+    audio/audio_mixed_processor
 
 PHYSICS = \
     physics/physics_demo \
@@ -510,6 +512,12 @@ PHYSICS = \
 
 OTHERS = \
     others/cubes
+    others/easings_testbed \
+    others/embedded_files_loading \
+    others/raylib_opengl_interop \
+    others/raymath_vector_angle \
+    others/rlgl_compute_shader \
+    others/rlgl_standalone
 
 CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 
@@ -557,16 +565,15 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
 		rm -f *.o
     endif
 endif
-ifeq ($(PLATFORM),PLATFORM_RPI)
-	find . -type f -executable -delete
-	rm -fv *.o
-endif
 ifeq ($(PLATFORM),PLATFORM_DRM)
 	find . -type f -executable -delete
 	rm -fv *.o
 endif
 ifeq ($(PLATFORM),PLATFORM_WEB)
-	del *.o *.html *.js
+    ifeq ($(PLATFORM_OS),WINDOWS)
+		del *.wasm *.html *.js *.data
+    else
+		rm -f */*.wasm */*.html */*.js */*.data
+    endif
 endif
 	@echo Cleaning done
-

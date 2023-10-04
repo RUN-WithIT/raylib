@@ -35,11 +35,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{9875B0C8-3893-43F8-88B2-4BAAAE3E8E6F}</ProjectGuid>
+    <ProjectGuid>{F81C5819-85B4-4D2E-B6DC-104A7634461B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>audio_multichannel_sound</RootNamespace>
+    <RootNamespace>audio_sound_multi</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>audio_multichannel_sound</ProjectName>
+    <ProjectName>audio_sound_multi</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -374,7 +374,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\audio\audio_multichannel_sound.c" />
+    <ClCompile Include="..\..\..\examples\audio\audio_sound_multi.c" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\..\..\src\raylib.rc" />

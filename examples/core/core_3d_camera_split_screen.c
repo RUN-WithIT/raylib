@@ -1,6 +1,6 @@
 /*******************************************************************************************
 *
-*   raylib [core] example - split screen
+*   raylib [core] example - 3d cmaera split screen
 *
 *   Example originally created with raylib 3.7, last time updated with raylib 4.0
 *
@@ -9,38 +9,11 @@
 *   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
 *   BSD-like license that allows static linking with closed source software
 *
-*   Copyright (c) 2021-2022 Jeffery Myers (@JeffM2501)
+*   Copyright (c) 2021-2023 Jeffery Myers (@JeffM2501)
 *
 ********************************************************************************************/
 
 #include "raylib.h"
-
-Texture2D textureGrid = { 0 };
-Camera cameraPlayer1 = { 0 };
-Camera cameraPlayer2 = { 0 };
-
-// Scene drawing
-void DrawScene(void)
-{
-    int count = 5;
-    float spacing = 4;
-
-    // Grid of cube trees on a plane to make a "world"
-    DrawPlane((Vector3){ 0, 0, 0 }, (Vector2){ 50, 50 }, BEIGE); // Simple world plane
-
-    for (float x = -count*spacing; x <= count*spacing; x += spacing)
-    {
-        for (float z = -count*spacing; z <= count*spacing; z += spacing)
-        {
-            DrawCubeTexture(textureGrid, (Vector3) { x, 1.5f, z }, 1, 1, 1, GREEN);
-            DrawCubeTexture(textureGrid, (Vector3) { x, 0.5f, z }, 0.25f, 1, 0.25f, BROWN);
-        }
-    }
-
-    // Draw a cube at each player's position
-    DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
-    DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
-}
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -52,16 +25,10 @@ int main(void)
     const int screenWidth = 800;
     const int screenHeight = 450;
 
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - split screen");
-
-    // Generate a simple texture to use for trees
-    Image img = GenImageChecked(256, 256, 32, 32, DARKGRAY, WHITE);
-    textureGrid = LoadTextureFromImage(img);
-    UnloadImage(img);
-    SetTextureFilter(textureGrid, TEXTURE_FILTER_ANISOTROPIC_16X);
-    SetTextureWrap(textureGrid, TEXTURE_WRAP_CLAMP);
+    InitWindow(screenWidth, screenHeight, "raylib [core] example - 3d camera split screen");
 
     // Setup player 1 camera and screen
+    Camera cameraPlayer1 = { 0 };
     cameraPlayer1.fovy = 45.0f;
     cameraPlayer1.up.y = 1.0f;
     cameraPlayer1.target.y = 1.0f;
@@ -71,6 +38,7 @@ int main(void)
     RenderTexture screenPlayer1 = LoadRenderTexture(screenWidth/2, screenHeight);
 
     // Setup player two camera and screen
+    Camera cameraPlayer2 = { 0 };
     cameraPlayer2.fovy = 45.0f;
     cameraPlayer2.up.y = 1.0f;
     cameraPlayer2.target.y = 3.0f;
@@ -81,6 +49,10 @@ int main(void)
 
     // Build a flipped rectangle the size of the split view to use for drawing later
     Rectangle splitScreenRect = { 0.0f, 0.0f, (float)screenPlayer1.texture.width, (float)-screenPlayer1.texture.height };
+    
+    // Grid data
+    int count = 5;
+    float spacing = 4;
 
     SetTargetFPS(60);               // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -124,26 +96,69 @@ int main(void)
         // Draw Player1 view to the render texture
         BeginTextureMode(screenPlayer1);
             ClearBackground(SKYBLUE);
+            
             BeginMode3D(cameraPlayer1);
-                DrawScene();
+            
+                // Draw scene: grid of cube trees on a plane to make a "world"
+                DrawPlane((Vector3){ 0, 0, 0 }, (Vector2){ 50, 50 }, BEIGE); // Simple world plane
+
+                for (float x = -count*spacing; x <= count*spacing; x += spacing)
+                {
+                    for (float z = -count*spacing; z <= count*spacing; z += spacing)
+                    {
+                        DrawCube((Vector3) { x, 1.5f, z }, 1, 1, 1, LIME);
+                        DrawCube((Vector3) { x, 0.5f, z }, 0.25f, 1, 0.25f, BROWN);
+                    }
+                }
+
+                // Draw a cube at each player's position
+                DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
+                DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
+                
             EndMode3D();
-            DrawText("PLAYER1 W/S to move", 10, 10, 20, RED);
+            
+            DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
+            DrawText("PLAYER1: W/S to move", 10, 10, 20, MAROON);
+            
         EndTextureMode();
 
         // Draw Player2 view to the render texture
         BeginTextureMode(screenPlayer2);
             ClearBackground(SKYBLUE);
+            
             BeginMode3D(cameraPlayer2);
-                DrawScene();
+            
+                // Draw scene: grid of cube trees on a plane to make a "world"
+                DrawPlane((Vector3){ 0, 0, 0 }, (Vector2){ 50, 50 }, BEIGE); // Simple world plane
+
+                for (float x = -count*spacing; x <= count*spacing; x += spacing)
+                {
+                    for (float z = -count*spacing; z <= count*spacing; z += spacing)
+                    {
+                        DrawCube((Vector3) { x, 1.5f, z }, 1, 1, 1, LIME);
+                        DrawCube((Vector3) { x, 0.5f, z }, 0.25f, 1, 0.25f, BROWN);
+                    }
+                }
+
+                // Draw a cube at each player's position
+                DrawCube(cameraPlayer1.position, 1, 1, 1, RED);
+                DrawCube(cameraPlayer2.position, 1, 1, 1, BLUE);
+                
             EndMode3D();
-            DrawText("PLAYER2 UP/DOWN to move", 10, 10, 20, BLUE);
+            
+            DrawRectangle(0, 0, GetScreenWidth()/2, 40, Fade(RAYWHITE, 0.8f));
+            DrawText("PLAYER2: UP/DOWN to move", 10, 10, 20, DARKBLUE);
+            
         EndTextureMode();
 
         // Draw both views render textures to the screen side by side
         BeginDrawing();
             ClearBackground(BLACK);
+            
             DrawTextureRec(screenPlayer1.texture, splitScreenRect, (Vector2){ 0, 0 }, WHITE);
             DrawTextureRec(screenPlayer2.texture, splitScreenRect, (Vector2){ screenWidth/2.0f, 0 }, WHITE);
+            
+            DrawRectangle(GetScreenWidth()/2 - 2, 0, 4, GetScreenHeight(), LIGHTGRAY);
         EndDrawing();
     }
 
@@ -151,7 +166,6 @@ int main(void)
     //--------------------------------------------------------------------------------------
     UnloadRenderTexture(screenPlayer1); // Unload render texture
     UnloadRenderTexture(screenPlayer2); // Unload render texture
-    UnloadTexture(textureGrid);         // Unload texture
 
     CloseWindow();                      // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
