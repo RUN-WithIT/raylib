@@ -502,7 +502,7 @@ void UpdateCamera(Camera *camera, int mode)
         if (!IsGamepadAvailable(0))
         {
             // Camera pan (for CAMERA_FREE)
-            if ((mode == CAMERA_FREE) && (IsMouseButtonDown(1)))
+            if ((mode == CAMERA_FREE || mode == CAMERA_THIRD_PERSON) && (IsMouseButtonDown(1)))
             {
                 const Vector2 mouseDelta = GetMouseDelta();
                 if (mouseDelta.x > 0.0f) CameraMoveRight(camera, CAMERA_PAN_SPEED, moveInWorldPlane);
