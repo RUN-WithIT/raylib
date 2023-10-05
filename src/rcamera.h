@@ -558,6 +558,16 @@ void UpdateCamera(Camera *camera, int mode)
                 CameraYaw(camera, -mousePositionDelta.x*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
                 CameraPitch(camera, -mousePositionDelta.y*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
             }
+            else if (IsGestureDetected (GESTURE_DRAG))
+            {
+	        mousePositionDelta = GetGestureDragVector ();
+
+		if (fabs (mousePositionDelta.x) > fabs (mousePositionDelta.y))
+		  mousePositionDelta.y = 0;
+
+                CameraYaw(camera, -mousePositionDelta.x*4*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+                CameraPitch(camera, -mousePositionDelta.y*4*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+            }
 
             // Keyboard support
             if (IsKeyDown(KEY_W)) CameraMoveForward(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
