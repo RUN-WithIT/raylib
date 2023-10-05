@@ -198,7 +198,7 @@ RLAPI Matrix GetCameraProjectionMatrix(Camera* camera, float aspect);
 //----------------------------------------------------------------------------------
 #define CAMERA_MOVE_SPEED                               0.09f
 #define CAMERA_ROTATION_SPEED                           0.03f
-#define CAMERA_PAN_SPEED                                0.5f
+#define CAMERA_PAN_SPEED                                0.2f
 
 // Camera mouse movement sensitivity
 #define CAMERA_MOUSE_MOVE_SENSITIVITY                   0.003f     // TODO: it should be independant of framerate
@@ -535,7 +535,8 @@ void UpdateCamera(Camera *camera, int mode)
 	if (IsMouseButtonDown (1))
 	{
 	    const Vector2 mouseDelta = GetMouseDelta ();
-	    float move = fmin (fmax (fabs (mouseDelta.x), fabs (mouseDelta.y)), CAMERA_PAN_SPEED);
+	    float distance = Vector3Distance (camera->position, camera->target);
+	    float move = CAMERA_PAN_SPEED * (distance / 50);
 
 	    if (fabs (mouseDelta.x) >= fabs (mouseDelta.y))
 	    {
