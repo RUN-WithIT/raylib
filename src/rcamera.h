@@ -574,8 +574,8 @@ void UpdateCamera(Camera *camera, int mode)
 	  if (fabs (mousePositionDelta.x) > fabs (mousePositionDelta.y))
 	  {
 	    mousePositionDelta.y = 0;
-	    CameraYaw(camera, -mousePositionDelta.x*4*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	    CameraPitch(camera, -mousePositionDelta.y*4*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	    CameraYaw(camera, -mousePositionDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	    CameraPitch(camera, -mousePositionDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 	  }
 	}
 
