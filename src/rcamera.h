@@ -609,11 +609,11 @@ void UpdateCamera(Camera *camera, int mode)
       // Zoom target distance
       float mwm = GetMouseWheelMove ();
 
-      if (mwm != 0 && IsGestureDetected (GESTURE_DRAG))
+      if (IsGestureDetected (GESTURE_DRAG))
       {
 	Vector2 vec = GetGestureDragVector ();
 
-	if (fabs (vec.x) < fabs (vec.y))
+	if (fabs (vec.y) > fabs (vec.x))
 	  mwm = vec.y;
       }
 
