@@ -538,10 +538,17 @@ void UpdateCamera(Camera *camera, int mode)
 	    float distance = Vector3Distance (camera->position, camera->target);
 	    float move = CAMERA_PAN_SPEED * (distance / 15);
 
-            if (mouseDelta.x > 0.0f) CameraMoveRight (camera, -move, moveInWorldPlane);
-            if (mouseDelta.x < 0.0f) CameraMoveRight (camera, move, moveInWorldPlane);
-            if (mouseDelta.y > 0.0f) CameraMoveForward (camera, move, moveInWorldPlane);
-            if (mouseDelta.y < 0.0f) CameraMoveForward (camera, -move, moveInWorldPlane);
+	    if (fabs (mouseDelta.x) >= fabs (mouseDelta.y))
+	    {
+	      if (mouseDelta.x > 0.0f) CameraMoveRight (camera, -move, moveInWorldPlane);
+	      if (mouseDelta.x < 0.0f) CameraMoveRight (camera, move, moveInWorldPlane);
+	    }
+	    else
+	    {
+	      if (mouseDelta.y > 0.0f) CameraMoveForward (camera, move, moveInWorldPlane);
+	      if (mouseDelta.y < 0.0f) CameraMoveForward (camera, -move, moveInWorldPlane);
+	    }
+
 	    /*
 	      TODO: add pivot -> left drag
 
