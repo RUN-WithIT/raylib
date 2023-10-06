@@ -308,6 +308,38 @@ void CameraMoveRight(Camera *camera, float distance, bool moveInWorldPlane)
     camera->target = Vector3Add(camera->target, right);
 }
 
+// Moves the camera in its up direction
+void CameraMoveForwardAndRight(Camera *camera, float fdistance, float rdistance, bool moveInWorldPlane)
+{
+    Vector3 forward = GetCameraForward(camera);
+    Vector3 right = GetCameraRight(camera);
+
+    if (moveInWorldPlane)
+    {
+        // Project vector onto world plane
+        forward.y = 0;
+        forward = Vector3Normalize(forward);
+    }
+
+    // Scale by distance
+    forward = Vector3Scale(forward, fdistance);
+
+    if (moveInWorldPlane)
+    {
+        // Project vector onto world plane
+        right.y = 0;
+        right = Vector3Normalize(right);
+    }
+
+    // Scale by distance
+    right = Vector3Scale(right, rdistance);
+    right = Vector3Add(right, forward);
+
+    // Move position and target
+    camera->position = Vector3Add(camera->position, right);
+    camera->target = Vector3Add(camera->target, right);
+}
+
 // Moves the camera position closer/farther to/from the camera target
 void CameraMoveToTarget(Camera *camera, float delta)
 {
@@ -533,23 +565,24 @@ void UpdateCamera(Camera *camera, int mode)
       {
 	// dab from the old camera controls 
 	// camera pan
-	if (IsMouseButtonDown (1))
+	if (IsKeyDown (KEY_LEFT_CONTROL))
 	{
 	    const Vector2 mouseDelta = GetMouseDelta ();
 	    float distance = Vector3Distance (camera->position, camera->target);
+            float rdistance = 0.0f;
+            float fdistance = 0.0f;
 	    float move = CAMERA_PAN_SPEED * (distance / 15);
 
-	    if (fabs (mouseDelta.x) >= fabs (mouseDelta.y))
-	    {
-	      if (mouseDelta.x > 0.0f) CameraMoveRight (camera, -move, moveInWorldPlane);
-	      if (mouseDelta.x < 0.0f) CameraMoveRight (camera, move, moveInWorldPlane);
-	    }
-	    else
-	    {
-	      if (mouseDelta.y > 0.0f) CameraMoveForward (camera, move, moveInWorldPlane);
-	      if (mouseDelta.y < 0.0f) CameraMoveForward (camera, -move, moveInWorldPlane);
-	    }
+	      if (mouseDelta.x > 0.0f)
+                rdistance = -move;
+	      if (mouseDelta.x < 0.0f)
+                rdistance = move;
+	      if (mouseDelta.y > 0.0f)
+                fdistance = move;
+	      if (mouseDelta.y < 0.0f)
+                fdistance = -move;
 
+            CameraMoveForwardAndRight(camera, fdistance, rdistance, moveInWorldPlane);
 	    /*
 	      TODO: add pivot -> left drag
 
@@ -568,6 +601,14 @@ void UpdateCamera(Camera *camera, int mode)
 	  CameraYaw(camera, -mousePositionDelta.x*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
 	  CameraPitch(camera, -mousePositionDelta.y*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 	}
+        else if (IsKeyDown(KEY_LEFT_ALT))
+        {
+	  const Vector2 mouseDelta = GetMouseDelta ();
+          float mwm = mouseDelta.y + mouseDelta.x;
+
+          CameraMoveToTarget(camera, -mwm);
+        }
+
 	else if (IsGestureDetected (GESTURE_DRAG))
 	{
 	  mousePositionDelta = GetGestureDragVector ();
