@@ -612,12 +612,23 @@ void UpdateCamera(Camera *camera, int mode)
 	else if (IsGestureDetected (GESTURE_DRAG))
 	{
 	  mousePositionDelta = GetGestureDragVector ();
+	  int window_height = GetScreenHeight ();
+	  Vector2 wp = GetWindowPosition ();
+	  int drag_origin_y = GetMousePosition ().y + (mousePositionDelta.y * -1);
+	  drag_origin_y -= wp.y;
 
 	  if (fabs (mousePositionDelta.x) > fabs (mousePositionDelta.y))
 	  {
 	    mousePositionDelta.y = 0;
 	    CameraYaw(camera, -mousePositionDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
 	    CameraPitch(camera, -mousePositionDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	    gesture_lock++;
+	  }
+	  else if (drag_origin_y <= window_height * 0.34 || drag_origin_y >= window_height * 0.68)
+	  {
+	    mousePositionDelta.x = 0;
+	    CameraYaw(camera, -mousePositionDelta.x*24*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	    CameraPitch(camera, -mousePositionDelta.y*24*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 	    gesture_lock++;
 	  }
 	}
@@ -669,7 +680,10 @@ void UpdateCamera(Camera *camera, int mode)
 	Vector2 vec = GetGestureDragVector ();
 
 	if (fabs (vec.y) > fabs (vec.x))
+	{
 	  mwm = vec.y;
+	  mwm *= 3;
+	}
       }
 
       CameraMoveToTarget(camera, -mwm);
