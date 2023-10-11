@@ -1,3 +1,4 @@
+#include "rcamera_xtra.h"
 /*******************************************************************************************
 *
 *   rcamera - Basic camera system with support for multiple camera modes
