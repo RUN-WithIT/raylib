@@ -541,7 +541,7 @@ void UpdateCamera(Camera *camera, int mode)
     bool rotateAroundTarget = ((mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
     bool lockView = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
     bool rotateUp = false;
-    int gesture_lock = 0;
+    int gesture_mode = ((CameraXtra *) camera)->mode;
 
     if (mode == CAMERA_ORBITAL)
     {
@@ -583,6 +583,7 @@ void UpdateCamera(Camera *camera, int mode)
 	      if (mouseDelta.y < 0.0f)
                 fdistance = -move;
 
+	    // TODO: fix jitter
             CameraMoveForwardAndRight(camera, fdistance, rdistance, moveInWorldPlane);
 	    /*
 	      TODO: add pivot -> left drag
@@ -609,43 +610,50 @@ void UpdateCamera(Camera *camera, int mode)
 
           CameraMoveToTarget(camera, -mwm);
         }
-
 	else if (IsGestureDetected (GESTURE_DRAG))
 	{
 	  mousePositionDelta = GetGestureDragVector ();
-	  int window_height = GetScreenHeight ();
-	  Vector2 wp = GetWindowPosition ();
-	  int drag_origin_y = GetMousePosition ().y + (mousePositionDelta.y * -1);
-	  drag_origin_y -= wp.y;
+	  float distance = Vector3Distance (camera->position, camera->target);
+	  float move = CAMERA_PAN_SPEED * (distance / 15);
 
-	  if (fabs (mousePositionDelta.x) > fabs (mousePositionDelta.y))
+	  switch (gesture_mode)
 	  {
-	    mousePositionDelta.y = 0;
-	    CameraYaw(camera, -mousePositionDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	    CameraPitch(camera, -mousePositionDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	    gesture_lock++;
-	  }
-	  else if (drag_origin_y <= window_height * 0.34 || drag_origin_y >= window_height * 0.68)
-	  {
-	    mousePositionDelta.x = 0;
-	    CameraYaw(camera, -mousePositionDelta.x*24*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	    CameraPitch(camera, -mousePositionDelta.y*24*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	    gesture_lock++;
+	  case 0:
+	    // pan
+	    if (fabs (mousePositionDelta.x) >= fabs (mousePositionDelta.y))
+	      mousePositionDelta.y = 0;
+	    else
+	      mousePositionDelta.x = 0;
+
+	    if (mousePositionDelta.x > 0)
+	      CameraMoveRight (camera, -move, moveInWorldPlane);
+	    else if (mousePositionDelta.x < 0)
+	      CameraMoveRight (camera, move, moveInWorldPlane);
+	    else if (mousePositionDelta.y > 0)
+	      CameraMoveForward (camera, move, moveInWorldPlane);
+	    else if (mousePositionDelta.y < 0)
+	      CameraMoveForward (camera, -move, moveInWorldPlane);
+
+	    break;
+
+	  case 1:
+	    // rotate
+	    if (fabs (mousePositionDelta.x) > fabs (mousePositionDelta.y))
+	    {
+	      mousePositionDelta.y = 0;
+	      CameraYaw(camera, -mousePositionDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	      CameraPitch(camera, -mousePositionDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	    }
+	    else
+	    {
+	      mousePositionDelta.x = 0;
+	      CameraYaw(camera, -mousePositionDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	      CameraPitch(camera, -mousePositionDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	    }
+
+	    break;
 	  }
 	}
-	else if (IsGestureDetected (GESTURE_SWIPE_RIGHT) || IsGestureDetected (GESTURE_SWIPE_LEFT) || IsGestureDetected (GESTURE_SWIPE_UP) || IsGestureDetected (GESTURE_SWIPE_DOWN))
-	{
-	    float distance = Vector3Distance (camera->position, camera->target);
-	    float move = CAMERA_PAN_SPEED * 8 * (distance / 15);
-
-	    if (IsGestureDetected (GESTURE_SWIPE_RIGHT)) CameraMoveRight (camera, -move, moveInWorldPlane);
-	    else if (IsGestureDetected (GESTURE_SWIPE_LEFT)) CameraMoveRight (camera, move, moveInWorldPlane);
-	    else if (IsGestureDetected (GESTURE_SWIPE_UP)) CameraMoveForward (camera, move, moveInWorldPlane);
-	    else if (IsGestureDetected (GESTURE_SWIPE_DOWN)) CameraMoveForward (camera, -move, moveInWorldPlane);
-
-	    gesture_lock++;
-	}
-
 	// Keyboard support
 	if (IsKeyDown(KEY_W)) CameraMoveForward(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
 	if (IsKeyDown(KEY_A)) CameraMoveRight(camera, -CAMERA_MOVE_SPEED, moveInWorldPlane);
@@ -676,8 +684,9 @@ void UpdateCamera(Camera *camera, int mode)
       // Zoom target distance
       float mwm = GetMouseWheelMove ();
 
-      if (!gesture_lock && IsGestureDetected (GESTURE_DRAG))
+      if (gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
       {
+	// zoom
 	Vector2 vec = GetGestureDragVector ();
 
 	if (fabs (vec.y) > fabs (vec.x))
