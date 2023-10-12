@@ -594,7 +594,7 @@ void UpdateCamera(Camera *camera, int mode)
 	}
         else if (IsKeyDown(KEY_LEFT_ALT))
         {
-          float mwm = dragGestureDelta.y + dragGestureDelta.x;
+          float mwm = mousePositionDelta.y + mousePositionDelta.x;
           CameraMoveToTarget(camera, -mwm);
         }
 	else if (IsGestureDetected (GESTURE_DRAG))
