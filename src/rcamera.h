@@ -559,7 +559,12 @@ void UpdateCamera(Camera *camera, int mode)
       {
 	// dab from the old camera controls 
 	// camera pan
-	if (IsKeyDown (KEY_LEFT_CONTROL))
+	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_LEFT_CONTROL))
+	{
+          float mwm = mousePositionDelta.y + mousePositionDelta.x;
+          CameraMoveUp (camera, -mwm);
+	}
+	else if (IsKeyDown (KEY_LEFT_CONTROL))
 	{
 	    float distance = Vector3Distance (camera->position, camera->target);
 	    float move = CAMERA_PAN_SPEED * (distance / 15);
