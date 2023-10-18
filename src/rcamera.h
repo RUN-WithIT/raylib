@@ -557,17 +557,15 @@ void UpdateCamera(Camera *camera, int mode)
       // Camera movement
       if (!IsGamepadAvailable(0))
       {
-	// dab from the old camera controls 
-	// camera pan
 	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_LEFT_CONTROL))
 	{
-          float mwm = mousePositionDelta.y + mousePositionDelta.x;
-          CameraMoveUp (camera, -mwm);
+	  float mwm = mousePositionDelta.y + mousePositionDelta.x;
+	  CameraMoveUp (camera, -mwm);
 	}
 	else if (IsKeyDown (KEY_LEFT_CONTROL))
 	{
-	    float distance = Vector3Distance (camera->position, camera->target);
-	    float move = CAMERA_PAN_SPEED * (distance / 15);
+	    float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
+	    float move = CAMERA_PAN_SPEED * (distance / 16);
 
 	    if (fabs (mousePositionDelta.x) >= fabs (mousePositionDelta.y))
 	      mousePositionDelta.y = 0;
@@ -596,8 +594,8 @@ void UpdateCamera(Camera *camera, int mode)
         }
 	else if (IsGestureDetected (GESTURE_DRAG))
 	{
-	  float distance = Vector3Distance (camera->position, camera->target);
-	  float move = CAMERA_PAN_SPEED * (distance / 15);
+	  float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
+	  float move = CAMERA_PAN_SPEED * (distance / 16);
 
 	  switch (gesture_mode)
 	  {
