@@ -649,7 +649,7 @@ void UpdateCamera(Camera *camera, int mode)
       }
     }
 
-    if ((mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL) || (mode == CAMERA_FREE))
+    if ((mode == CAMERA_CUSTOM) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL) || (mode == CAMERA_FREE))
     {
       // Zoom target distance
       float mwm = GetMouseWheelMove ();
