@@ -511,7 +511,7 @@ PHYSICS = \
     physics/physics_shatter
 
 OTHERS = \
-    others/cubes
+    others/cubes \
     others/easings_testbed \
     others/embedded_files_loading \
     others/raylib_opengl_interop \
@@ -530,6 +530,11 @@ run:
 	rm -f others/cubes
 	make others/cubes
 	cd others ; ./cubes
+
+debug:
+	rm -f others/cubes
+	make others/cubes
+	cd others ; lldb ./cubes
 
 core: $(CORE)
 shapes: $(SHAPES)
