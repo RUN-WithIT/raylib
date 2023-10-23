@@ -565,7 +565,7 @@ void UpdateCamera(Camera *camera, int mode)
 	else if (IsKeyDown (KEY_LEFT_CONTROL))
 	{
 	    float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
-	    float move = CAMERA_PAN_SPEED * (distance / 16);
+	    float move = CAMERA_PAN_SPEED * (distance / 5);
 
 	    if (fabs (mousePositionDelta.x) >= fabs (mousePositionDelta.y))
 	      mousePositionDelta.y = 0;
