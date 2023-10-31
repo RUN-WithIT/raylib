@@ -543,6 +543,7 @@ void UpdateCamera(Camera *camera, int mode)
     bool lockView = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
     bool rotateUp = false;
     int gesture_mode = ((CameraXtra *) camera)->mode;
+    int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
 
     if (mode == CAMERA_ORBITAL)
     {
@@ -592,7 +593,7 @@ void UpdateCamera(Camera *camera, int mode)
           float mwm = mousePositionDelta.y + mousePositionDelta.x;
           CameraMoveToTarget(camera, -mwm);
         }
-	else if (IsGestureDetected (GESTURE_DRAG))
+	else if (!ignore_gesture && IsGestureDetected (GESTURE_DRAG))
 	{
 	  float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
 	  float move = CAMERA_PAN_SPEED * (distance / 16);
@@ -654,7 +655,7 @@ void UpdateCamera(Camera *camera, int mode)
       // Zoom target distance
       float mwm = GetMouseWheelMove ();
 
-      if (gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
+      if (!ignore_gesture && gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
       {
 	// zoom
 	if (fabs (dragGestureDelta.y) > fabs (dragGestureDelta.x))
