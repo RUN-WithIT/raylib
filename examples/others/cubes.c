@@ -5,6 +5,7 @@
 #include "raylib.h"
 #include <time.h>
 #include <math.h>
+#include <unistd.h>
 
 #define GL_SILENCE_DEPRECATION
 #include "rlgl.h"
@@ -27,6 +28,7 @@
 typedef struct Vertex_s Vertex_t;
 typedef struct PointCloud_s PointCloud_t;
 typedef struct Obj_s Obj_t;
+typedef struct Cbd_s Cbd_t;
 
 struct Vertex_s
 {
@@ -57,6 +59,17 @@ struct Obj_s
   Vector3 _orig_dim;
   Color _orig_color;
 };
+
+struct Cbd_s
+{
+  Obj_t *obj;
+  Vector3 pos, dim, pos_at, dim_at;
+  Color color, color_at;
+  unsigned int start_ts, end_ts;
+  Vertex_t **vs;
+  int reset, animate;
+};
+
 
 unsigned int
 _ts (unsigned int offset_sec)
@@ -105,6 +118,7 @@ _obj_alloc (unsigned int vertice_index, Vector3 pos, Vector3 dim, Color color, O
   _obj->dim = dim;
   _obj->color = color;
   _obj->age = GetRandomValue (0, 100);
+  _obj->hidden_flag = 0;
 
   _obj->_orig_pos = pos;
   _obj->_orig_dim = dim;
@@ -178,48 +192,73 @@ CLEANUP:
 }
 
 static char *
-_animate (PointCloud_t *pc, Obj_t *obj,
-	  Vector3 pos, Vector3 dim, Color color,
-	  Vector3 pos_at, Vector3 dim_at, Vector4 color_at,
-	  unsigned int start_ts, unsigned int end_ts,
-	  Vertex_t **vs, unsigned int vc)
+_reset (Obj_t *obj)
 {
   char *retval = NULL;
-  Vector3 old_pos = obj->pos;
-  Vector3 old_dim = obj->dim;
-  Color old_color = obj->color;
-  float dx = 0, dy = 0, dz = 0, dr = 0, dg = 0, db = 0, da = 0;
-  float r = 0, g = 0, b = 0, a = 0, x = 0, y = 0, z = 0;
 
-  if (!(pos_at.x))
-    pos.x += old_pos.x;
+  obj->pos.x = obj->_orig_pos.x;
+  obj->pos.y = obj->_orig_pos.y;
+  obj->pos.z = obj->_orig_pos.z;
 
-  if (!(pos_at.y))
-    pos.y += old_pos.y;
+  obj->dim.x = obj->_orig_dim.x;
+  obj->dim.y = obj->_orig_dim.y;
+  obj->dim.z = obj->_orig_dim.z;
 
-  if (!(pos_at.z))
-    pos.z += old_pos.z;
+  obj->color.r = obj->_orig_color.r;
+  obj->color.g = obj->_orig_color.g;
+  obj->color.b = obj->_orig_color.b;
+  obj->color.a = obj->_orig_color.a;
 
-  if (!(dim_at.x))
-    dim.x += old_dim.x;
+  goto CLEANUP;
 
-  if (!(dim_at.y))
-    dim.y += old_dim.y;
+CLEANUP:
+  return retval;
+}
 
-  if (!(dim_at.z))
-    dim.z += old_dim.z;
+static char *
+_animate (Cbd_t *cbd)
+{
+  char *retval = NULL;
+  float
+    dx = 0, dy = 0, dz = 0, dr = 0, dg = 0, db = 0, da = 0,
+    r = 0, g = 0, b = 0, a = 0, x = 0, y = 0, z = 0;
+  unsigned int
+    start_ts = cbd->start_ts,
+    end_ts = cbd->end_ts;
+  Obj_t *obj = cbd->obj;
+  Vector3
+    pos = cbd->pos,
+    dim = cbd->dim,
+    pos_at = cbd->pos_at,
+    dim_at = cbd->dim_at,
+    old_pos = obj->pos,
+    old_dim = obj->dim;
+  Color
+    color = cbd->color,
+    color_at = cbd->color_at,
+    old_color = obj->color;
+  Vertex_t **vs = cbd->vs;
 
-  if (!(color_at.x))
-    color.r += old_color.r;
 
-  if (!(color_at.y))
-    color.g += old_color.g;
+  if (!(pos_at.x)) pos.x += old_pos.x;
 
-  if (!(color_at.z))
-    color.b += old_color.b;
+  if (!(pos_at.y)) pos.y += old_pos.y;
 
-  if (!(color_at.w))
-    color.a += old_color.a;
+  if (!(pos_at.z)) pos.z += old_pos.z;
+
+  if (!(dim_at.x)) dim.x += old_dim.x;
+
+  if (!(dim_at.y)) dim.y += old_dim.y;
+
+  if (!(dim_at.z)) dim.z += old_dim.z;
+
+  if (!(color_at.r)) color.r += old_color.r;
+
+  if (!(color_at.g)) color.g += old_color.g;
+
+  if (!(color_at.b)) color.b += old_color.b;
+
+  if (!(color_at.a)) color.a += old_color.a;
 
   r = color.r / 255.0;
   g = color.g / 255.0;
@@ -307,58 +346,73 @@ _animate (PointCloud_t *pc, Obj_t *obj,
   dz = (old_pos.z + (old_dim.z / 2)) - z;
   *vs[7] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
 
-  goto CLEANUP;
-
 CLEANUP:
   return retval;
 }
 
 char *
-point_cloud_update_cube (PointCloud_t *pc, Obj_t *obj)
+point_cloud_update_cube (PointCloud_t *pc, Obj_t *obj, Cbd_t *cbd)
 {
-  unsigned int index = obj->vertice_index;
-  Vector3 pos = obj->pos, dim = obj->dim;
-  Color color = obj->color;
   char *retval = NULL;
-  float
-    r = color.r,
-    g = color.g,
-    b = color.b,
-    a = color.a;
-  float
-    width = dim.x,
-    height = dim.y,
-    depth = dim.z;
-  unsigned int
-    start_ts = _ts (0),
-    end_ts = _ts (10);
-  Vertex_t
-    tl =  (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    tr =  (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    br =  (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    bl =  (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    rtl = (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    rtr = (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    rbr = (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    rbl = (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  Vector3 pos, dim;
+  Color color;
+  float r, g, b, a, width, height, depth;
+  unsigned int index = obj->vertice_index;
+  Vertex_t tl, tr, br, bl, rtl, rtr, rbr, rbl;
   Vertex_t *vs[8] = { &tl, &tr, &br, &bl, &rtl, &rtr, &rbr, &rbl };
 
-  Vector3
-    pos_at = (Vector3) { 1, 0, 1},
-    dim_at = (Vector3) { 0, 0, 0};
-  Vector4
-    color_at = (Vector4) { 0, 0, 0, 1};
-
-  retval = _animate (pc, obj,
-		     (Vector3) {0, 0, 0}, (Vector3) { 0, 0, 0 }, (Color) { 0, 0, 0, 0 },
-		     pos_at, dim_at, color_at,
-		     start_ts, end_ts,
-		     (Vertex_t **) &vs, 8);
-
-  if (retval != NULL)
+  /*
+   * do not interupt ongoing animation
+   */
+  if (cbd->start_ts <= pc->vertices[index].end_ts)
   {
-    retval = RSTRDUP ("failed to animate");
     goto CLEANUP;
+  }
+
+  /*
+   * reset the object (if not hidden) to its original pos, dim, color
+   */
+  if (cbd->reset && !(obj->hidden_flag))
+  {
+    _reset (obj);
+  }
+
+  pos = obj->pos;
+  dim = obj->dim;
+  color = obj->color;
+
+  r = color.r;
+  g = color.g;
+  b = color.b;
+  a = color.a;
+  width = dim.x;
+  height = dim.y;
+  depth = dim.z;
+
+  tl =  (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  tr =  (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  br =  (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  bl =  (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  rtl = (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  rtr = (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  rbr = (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  rbl = (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+  cbd->vs = (Vertex_t **) &vs;
+  cbd->obj = obj;
+
+  /*
+   * animate the obj only if it is not hidden
+   */
+  if (!(cbd->reset) && !(obj->hidden_flag) && cbd->animate)
+  {
+    retval = _animate (cbd);
+
+    if (retval != NULL)
+    {
+      retval = RSTRDUP ("failed to animate");
+      goto CLEANUP;
+    }
   }
 
   if (index + 35 >= pc->vertex_count)
@@ -463,6 +517,7 @@ char *
 point_cloud_upload_all_data (PointCloud_t *pc)
 {
   char *retval = NULL;
+  float size = sizeof (float) * 14 + sizeof (unsigned int) * 2;
 
   // bind vertex array
   glBindVertexArray (pc->vao);
@@ -473,8 +528,6 @@ point_cloud_upload_all_data (PointCloud_t *pc)
   // load data
   glBufferData (GL_ARRAY_BUFFER, pc->vertex_count * sizeof (Vertex_t), pc->vertices, GL_STATIC_DRAW);
 
-  float size = sizeof (float) * 14 + sizeof (unsigned int) * 2;
-
   // load x,y,z into layout = 0
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, size, (void *) 0);
   glEnableVertexAttribArray (0);
@@ -483,19 +536,19 @@ point_cloud_upload_all_data (PointCloud_t *pc)
   glVertexAttribPointer (1, 4, GL_FLOAT, GL_FALSE, size, (void *) (sizeof (float) * 3));
   glEnableVertexAttribArray (1);
 
-  // load dx,dy,dz
+  // load dx,dy,dz into layout = 2
   glVertexAttribPointer (2, 3, GL_FLOAT, GL_FALSE, size, (void *) (sizeof (float) * 7));
   glEnableVertexAttribArray (2);
 
-  // load dr,dg,db,da
+  // load dr,dg,db,da into layout = 3
   glVertexAttribPointer (3, 4, GL_FLOAT, GL_FALSE, size, (void *) (sizeof (float) * 10));
   glEnableVertexAttribArray (3);
 
-  // load start time stamp
+  // load start_ts into layout = 4
   glVertexAttribPointer (4, 1, GL_UNSIGNED_INT, GL_FALSE, size, (void *) (sizeof (float) * 14));
   glEnableVertexAttribArray (4);
 
-  // load end time stamp
+  // load end_ts into layout = 5
   glVertexAttribPointer (5, 1, GL_UNSIGNED_INT, GL_FALSE, size, (void *) (sizeof (float) * 14) + sizeof (unsigned int));
   glEnableVertexAttribArray (5);
 
@@ -506,6 +559,7 @@ point_cloud_upload_all_data (PointCloud_t *pc)
   glBindVertexArray (0);
 
   goto CLEANUP;
+
 CLEANUP:
   return retval;
 }
@@ -528,10 +582,6 @@ point_cloud_draw (PointCloud_t *pc)
   ts = _ts (0);
   location = glGetUniformLocation (pc->shader.id, "ts");
 
-  // TODO: fix math
-  //printf ("ts: %u, ets: %u, %f\n", ts, (pc->vertices[0]).ets, ts / (pc->vertices[0]).ets);
-  //printf ("start_ts: %u, ts: %u, end_ts: %u, mul: %f\n", (pc->vertices[0]).start_ts, ts, (pc->vertices[0]).end_ts, (float) (ts - (pc->vertices[0].start_ts)) / (float) ((pc->vertices[0].end_ts) - (pc->vertices[0].start_ts)));
-
   if (!location)
   {
     retval = RSTRDUP ("failed to get ts");
@@ -547,6 +597,7 @@ point_cloud_draw (PointCloud_t *pc)
   glUseProgram (0);
 
   goto CLEANUP;
+
 CLEANUP:
   return retval;
 }
@@ -569,6 +620,7 @@ main (int argc, char *argv[])
   Color color = { 0 };
   PointCloud_t *pc = NULL;
   Obj_t **objs = NULL;
+  Cbd_t cbd;
 
   if (argc >= 2)
     cube_count = atoi (argv[1]);
@@ -625,10 +677,22 @@ main (int argc, char *argv[])
   // alloc point cloud (must be after InitWindow)
   retval = point_cloud_alloc (cube_count, &pc);
   if (retval != NULL) { goto CLEANUP; }
+
+  memset (&cbd, '\0', sizeof (Cbd_t));
+  cbd.pos = (Vector3) { 0, 10, 0 };
+  cbd.dim = (Vector3) { 0, 0, 0 };
+  cbd.color = (Color) { 0, 0, 0, 0 };
+  cbd.pos_at = (Vector3) { 0, 0, 0};
+  cbd.dim_at = (Vector3) { 0, 0, 0 };
+  cbd.color_at = (Color) { 0, 0, 0, 0 };
+  cbd.start_ts = _ts (0);
+  cbd.end_ts = _ts (5);
+  cbd.reset = 0;
+  cbd.animate = 1;
   
   for (i = 0; i < pc->cube_count; i++)
   {
-    retval = point_cloud_update_cube (pc, objs[i]);
+    retval = point_cloud_update_cube (pc, objs[i], &cbd);
     if (retval != NULL) { goto CLEANUP; }
   }
 
