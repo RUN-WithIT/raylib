@@ -6,6 +6,7 @@ layout (location = 2) in vec3 deltaPosition;
 layout (location = 3) in vec4 deltaColor; 
 layout (location = 4) in uint start_ts; 
 layout (location = 5) in uint end_ts; 
+layout (location = 6) in uint mode; 
 
 uniform mat4 mvp; 
 uniform uint ts; 
@@ -23,7 +24,9 @@ main ()
   {
     m0 = float (ts - start_ts) / float (end_ts - start_ts);
     m0 = float (1) - m0;
-    // m0 = sin (m0 * 10);
+
+    if (mode == uint (1))
+      m0 = sin (m0 * 10);
 
     pos.x += (m0 * deltaPosition.x);
     pos.y += (m0 * deltaPosition.y);

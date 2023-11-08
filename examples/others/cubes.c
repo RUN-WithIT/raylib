@@ -34,7 +34,7 @@ struct Vertex_s
 {
   float x, y, z, r, g, b, a;
   float dx, dy, dz, dr, dg, db, da;
-  unsigned int start_ts, end_ts;
+  unsigned int start_ts, end_ts, mode;
 };
 
 struct PointCloud_s
@@ -65,11 +65,10 @@ struct Cbd_s
   Obj_t *obj;
   Vector3 pos, dim, pos_at, dim_at;
   Color color, color_at;
-  unsigned int start_ts, end_ts;
+  unsigned int start_ts, end_ts, mode;
   Vertex_t **vs;
   int reset, animate;
 };
-
 
 unsigned int
 _ts (unsigned int offset_sec)
@@ -78,7 +77,6 @@ _ts (unsigned int offset_sec)
   clock_gettime (CLOCK_REALTIME, &_t);
   return (_t.tv_sec + offset_sec) * 1000 + lround (_t.tv_nsec / 1e6);
 }
-
 
 char *
 _color_print (Color c)
@@ -281,7 +279,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x - (old_dim.x / 2)) - x;
   dy = (old_pos.y + (old_dim.y / 2)) - y;
   dz = (old_pos.z - (old_dim.z / 2)) - z;
-  *vs[0] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[0] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x + (dim.x / 2);
   y = pos.y + (dim.y / 2);
@@ -290,7 +288,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x + (old_dim.x / 2)) - x;
   dy = (old_pos.y + (old_dim.y / 2)) - y;
   dz = (old_pos.z - (old_dim.z / 2)) - z;
-  *vs[1] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[1] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x + (dim.x / 2);
   y = pos.y - (dim.y / 2);
@@ -299,7 +297,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x + (old_dim.x / 2)) - x;
   dy = (old_pos.y - (old_dim.y / 2)) - y;
   dz = (old_pos.z - (old_dim.z / 2)) - z;
-  *vs[2] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[2] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x - (dim.x / 2);
   y = pos.y - (dim.y / 2);
@@ -308,7 +306,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x - (old_dim.x / 2)) - x;
   dy = (old_pos.y - (old_dim.y / 2)) - y;
   dz = (old_pos.z - (old_dim.z / 2)) - z;
-  *vs[3] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[3] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x - (dim.x / 2);
   y = pos.y + (dim.y / 2);
@@ -317,7 +315,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x - (old_dim.x / 2)) - x;
   dy = (old_pos.y + (old_dim.y / 2)) - y;
   dz = (old_pos.z + (old_dim.z / 2)) - z;
-  *vs[4] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[4] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x + (dim.x / 2);
   y = pos.y + (dim.y / 2);
@@ -326,7 +324,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x + (old_dim.x / 2)) - x;
   dy = (old_pos.y + (old_dim.y / 2)) - y;
   dz = (old_pos.z + (old_dim.z / 2)) - z;
-  *vs[5] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[5] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x + (dim.x / 2);
   y = pos.y - (dim.y / 2);
@@ -335,7 +333,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x + (old_dim.x / 2)) - x;
   dy = (old_pos.y - (old_dim.y / 2)) - y;
   dz = (old_pos.z + (old_dim.z / 2)) - z;
-  *vs[6] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[6] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
   x = pos.x - (dim.x / 2);
   y = pos.y - (dim.y / 2);
@@ -344,7 +342,7 @@ _animate (Cbd_t *cbd)
   dx = (old_pos.x - (old_dim.x / 2)) - x;
   dy = (old_pos.y - (old_dim.y / 2)) - y;
   dz = (old_pos.z + (old_dim.z / 2)) - z;
-  *vs[7] = (Vertex_t) {x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts};
+  *vs[7] = (Vertex_t) { x, y, z, r, g, b, a, dx, dy, dz, dr, dg, db, da, start_ts, end_ts, cbd->mode };
 
 CLEANUP:
   return retval;
@@ -389,14 +387,14 @@ point_cloud_update_cube (PointCloud_t *pc, Obj_t *obj, Cbd_t *cbd)
   height = dim.y;
   depth = dim.z;
 
-  tl =  (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  tr =  (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  br =  (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  bl =  (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  rtl = (Vertex_t) {pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  rtr = (Vertex_t) {pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  rbr = (Vertex_t) {pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  rbl = (Vertex_t) {pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  tl =  (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  tr =  (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  br =  (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  bl =  (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  rtl = (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  rtr = (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  rbr = (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  rbl = (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
   cbd->vs = (Vertex_t **) &vs;
   cbd->obj = obj;
@@ -517,7 +515,7 @@ char *
 point_cloud_upload_all_data (PointCloud_t *pc)
 {
   char *retval = NULL;
-  float size = sizeof (float) * 14 + sizeof (unsigned int) * 2;
+  float size = sizeof (float) * 14 + sizeof (unsigned int) * 3;
 
   // bind vertex array
   glBindVertexArray (pc->vao);
@@ -551,6 +549,10 @@ point_cloud_upload_all_data (PointCloud_t *pc)
   // load end_ts into layout = 5
   glVertexAttribPointer (5, 1, GL_UNSIGNED_INT, GL_FALSE, size, (void *) (sizeof (float) * 14) + sizeof (unsigned int));
   glEnableVertexAttribArray (5);
+
+  // load end_ts into layout = 6
+  glVertexAttribPointer (6, 1, GL_UNSIGNED_INT, GL_FALSE, size, (void *) (sizeof (float) * 14) + sizeof (unsigned int) * 2);
+  glEnableVertexAttribArray (6);
 
   // unbind buffer
   glBindBuffer (GL_ARRAY_BUFFER, 0);
@@ -686,9 +688,10 @@ main (int argc, char *argv[])
   cbd.dim_at = (Vector3) { 0, 0, 0 };
   cbd.color_at = (Color) { 0, 0, 0, 0 };
   cbd.start_ts = _ts (0);
-  cbd.end_ts = _ts (5);
+  cbd.end_ts = _ts (10);
   cbd.reset = 0;
   cbd.animate = 1;
+  cbd.mode = 1;
   
   for (i = 0; i < pc->cube_count; i++)
   {
