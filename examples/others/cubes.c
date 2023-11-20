@@ -35,6 +35,7 @@ struct Vertex_s
   float x, y, z, r, g, b, a;
   float dx, dy, dz, dr, dg, db, da;
   unsigned int start_ts, end_ts, mode;
+  float cx, cy, cz;
 };
 
 struct PointCloud_s
@@ -386,15 +387,16 @@ point_cloud_update_cube (PointCloud_t *pc, Obj_t *obj, Cbd_t *cbd)
   width = dim.x;
   height = dim.y;
   depth = dim.z;
+  float cx = pos.x, cy = pos.y, cz = pos.z;
 
-  tl =  (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  tr =  (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  br =  (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  bl =  (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  rtl = (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  rtr = (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  rbr = (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-  rbl = (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  tl =  (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  tr =  (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  br =  (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  bl =  (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z - (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  rtl = (Vertex_t) { pos.x - (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  rtr = (Vertex_t) { pos.x + (width / 2), pos.y + (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  rbr = (Vertex_t) { pos.x + (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
+  rbl = (Vertex_t) { pos.x - (width / 2), pos.y - (height / 2), pos.z + (depth / 2), r, g, b, a, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, cx, cy, cz};
 
   cbd->vs = (Vertex_t **) &vs;
   cbd->obj = obj;
@@ -515,7 +517,7 @@ char *
 point_cloud_upload_all_data (PointCloud_t *pc)
 {
   char *retval = NULL;
-  float size = sizeof (float) * 14 + sizeof (unsigned int) * 3;
+  float size = sizeof (float) * 14 + sizeof (unsigned int) * 3 + sizeof (float) * 3;
 
   // bind vertex array
   glBindVertexArray (pc->vao);
@@ -554,6 +556,10 @@ point_cloud_upload_all_data (PointCloud_t *pc)
   glVertexAttribPointer (6, 1, GL_UNSIGNED_INT, GL_FALSE, size, (void *) (sizeof (float) * 14) + sizeof (unsigned int) * 2);
   glEnableVertexAttribArray (6);
 
+  // load cx,cy,cz
+  glVertexAttribPointer (7, 3, GL_FLOAT, GL_FALSE, size, (void *) (sizeof (float) * 14) + sizeof (unsigned int) * 3);
+  glEnableVertexAttribArray (7);
+
   // unbind buffer
   glBindBuffer (GL_ARRAY_BUFFER, 0);
 
@@ -567,12 +573,12 @@ CLEANUP:
 }
 
 char *
-point_cloud_draw (PointCloud_t *pc)
+point_cloud_draw (PointCloud_t *pc, Camera3D camera)
 {
   char *retval = NULL;
   // model view projection
   Matrix mvp = { 0 };
-  GLuint location;
+  GLint location;
   unsigned int ts = 0;
 
   rlDrawRenderBatchActive ();
@@ -584,13 +590,15 @@ point_cloud_draw (PointCloud_t *pc)
   ts = _ts (0);
   location = glGetUniformLocation (pc->shader.id, "ts");
 
-  if (!location)
-  {
-    retval = RSTRDUP ("failed to get ts");
-    goto CLEANUP;
-  }
-
   glUniform1ui (location, ts);
+
+  location = glGetUniformLocation (pc->shader.id, "cam");
+
+  glUniform3f (location,
+	       camera.position.x,
+	       camera.position.y,
+	       camera.position.z);
+	       
 
   glBindVertexArray (pc->vao);
   glDrawArrays (GL_TRIANGLES, 0, pc->vertex_count);
@@ -681,7 +689,7 @@ main (int argc, char *argv[])
   if (retval != NULL) { goto CLEANUP; }
 
   memset (&cbd, '\0', sizeof (Cbd_t));
-  cbd.pos = (Vector3) { 0, 10, 0 };
+  cbd.pos = (Vector3) { 0, 100, 0 };
   cbd.dim = (Vector3) { 0, 0, 0 };
   cbd.color = (Color) { 0, 0, 0, 0 };
   cbd.pos_at = (Vector3) { 0, 0, 0};
@@ -690,7 +698,7 @@ main (int argc, char *argv[])
   cbd.start_ts = _ts (0);
   cbd.end_ts = _ts (10);
   cbd.reset = 0;
-  cbd.animate = 1;
+  cbd.animate = 0;
   cbd.mode = 1;
   
   for (i = 0; i < pc->cube_count; i++)
@@ -706,10 +714,13 @@ main (int argc, char *argv[])
   glEnable (GL_PROGRAM_POINT_SIZE);
 
   //SetTargetFPS (60);
-  printf ("vertex_count %u\n", pc->vertex_count);
+  //printf ("vertex_count %u\n", pc->vertex_count);
+
+  unsigned int fc = 0;
 
   while (!WindowShouldClose ())
   {
+    fc++;
     UpdateCamera (&camera, CAMERA_THIRD_PERSON);
 
     BeginDrawing ();
@@ -720,7 +731,7 @@ main (int argc, char *argv[])
     if (shader_flag)
     {
       // draw cubes (formed by vertices) (must be inside Mode3D)
-      retval = point_cloud_draw (pc);
+      retval = point_cloud_draw (pc, camera);
       if (retval != NULL) { goto CLEANUP; }
     }
     else
@@ -734,6 +745,17 @@ main (int argc, char *argv[])
     // draw fps
     DrawRectangle (screenWidth - 120, 0, 110, 30, BLACK);
     DrawFPS (screenWidth - 100, 5);
+    if (fc % 150 == 0)
+    {
+    printf ("camera -> {pos: {x:%f,y:%f,z:%f}, target: {x:%f,y:%f,z:%f}\n",
+	    camera.position.x,
+	    camera.position.y,
+	    camera.position.z,
+	    camera.target.x,
+	    camera.target.y,
+	    camera.target.z);
+      fc = 0;
+    }
 
     // draw cube count
     DrawRectangle (10, 0, 220, 30, BLACK);

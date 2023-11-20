@@ -7,9 +7,11 @@ layout (location = 3) in vec4 deltaColor;
 layout (location = 4) in uint start_ts; 
 layout (location = 5) in uint end_ts; 
 layout (location = 6) in uint mode; 
+layout (location = 7) in vec3 center; 
 
 uniform mat4 mvp; 
 uniform uint ts; 
+uniform vec3 cam;
 
 out vec4 theColor; 
 
@@ -19,6 +21,7 @@ main ()
   vec3 pos = vertexPosition;
   vec4 color = vertexColor;
   float m0 = 0;
+  float distance = sqrt (pow ((cam.x - center.x), 2) + pow ((cam.y - center.y), 2) + pow ((cam.z - center.z), 2));
 
   if (start_ts <= ts && ts <= end_ts)
   {
@@ -38,9 +41,12 @@ main ()
     color.a += (m0 * deltaColor.a);
   }
  
-  if (color.a == 0)
+  if (distance > 100 || color.a == 0)
+  {
+    color.a = 0;
     pos.y += 1000;
- 
+  }
+
   gl_Position = mvp * vec4 (pos, 1.0);
   theColor = color;
 }
