@@ -12,6 +12,7 @@ layout (location = 7) in vec3 center;
 uniform mat4 mvp; 
 uniform uint ts; 
 uniform vec3 cam;
+uniform float draw_probability;
 
 out vec4 theColor; 
 
@@ -41,7 +42,7 @@ main ()
     color.a += (m0 * deltaColor.a);
   }
  
-  if (distance > 100 || color.a == 0)
+  if (distance > (100 * draw_probability) || color.a == 0)
   {
     color.a = 0;
     pos.y += 1000;
