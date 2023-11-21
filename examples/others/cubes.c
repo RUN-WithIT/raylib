@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +71,14 @@ struct Cbd_s
   Vertex_t **vs;
   int reset, animate;
 };
+
+double
+_ts_double (unsigned int offset_sec)
+{
+  struct timespec _t;
+  clock_gettime (CLOCK_REALTIME, &_t);
+  return (_t.tv_sec + offset_sec) * 1000 + lround (_t.tv_nsec / 1e6);
+}
 
 unsigned int
 _ts (unsigned int offset_sec)
@@ -631,6 +640,10 @@ main (int argc, char *argv[])
   PointCloud_t *pc = NULL;
   Obj_t **objs = NULL;
   Cbd_t cbd;
+  int frame_count = 0;
+  double
+    previous_time = 0,
+    current_time = 0;
 
   if (argc >= 2)
     cube_count = atoi (argv[1]);
@@ -717,10 +730,11 @@ main (int argc, char *argv[])
   //printf ("vertex_count %u\n", pc->vertex_count);
 
   unsigned int fc = 0;
+  previous_time = current_time = _ts_double (0);
 
   while (!WindowShouldClose ())
   {
-    fc++;
+    //fc++;
     UpdateCamera (&camera, CAMERA_THIRD_PERSON);
 
     BeginDrawing ();
@@ -745,23 +759,36 @@ main (int argc, char *argv[])
     // draw fps
     DrawRectangle (screenWidth - 120, 0, 110, 30, BLACK);
     DrawFPS (screenWidth - 100, 5);
+    /*
     if (fc % 150 == 0)
     {
-    printf ("camera -> {pos: {x:%f,y:%f,z:%f}, target: {x:%f,y:%f,z:%f}\n",
-	    camera.position.x,
-	    camera.position.y,
-	    camera.position.z,
-	    camera.target.x,
-	    camera.target.y,
-	    camera.target.z);
+      printf ("camera -> {pos: {x:%f,y:%f,z:%f}, target: {x:%f,y:%f,z:%f}\n",
+	      camera.position.x,
+	      camera.position.y,
+	      camera.position.z,
+	      camera.target.x,
+	      camera.target.y,
+	      camera.target.z);
       fc = 0;
     }
+    */
 
     // draw cube count
     DrawRectangle (10, 0, 220, 30, BLACK);
     DrawText (TextFormat ("%zu cubes drawn", pc->cube_count), 15, 5, 20, GREEN);
     
     EndDrawing ();
+
+    current_time = _ts_double (0);
+    frame_count++;
+
+    if (current_time - previous_time >= 1000.0)
+    {
+      printf ("FPS: %d\n", frame_count);
+
+      frame_count = 0;
+      previous_time = current_time;
+    }
   }
 
 CLEANUP:
