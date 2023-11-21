@@ -582,7 +582,7 @@ CLEANUP:
 }
 
 char *
-point_cloud_draw (PointCloud_t *pc, Camera3D camera)
+point_cloud_draw (PointCloud_t *pc, Camera3D camera, float draw_probability)
 {
   char *retval = NULL;
   // model view projection
@@ -607,7 +607,10 @@ point_cloud_draw (PointCloud_t *pc, Camera3D camera)
 	       camera.position.x,
 	       camera.position.y,
 	       camera.position.z);
-	       
+
+  location = glGetUniformLocation (pc->shader.id, "draw_probability");
+
+  glUniform1f (location, draw_probability);
 
   glBindVertexArray (pc->vao);
   glDrawArrays (GL_TRIANGLES, 0, pc->vertex_count);
@@ -640,7 +643,10 @@ main (int argc, char *argv[])
   PointCloud_t *pc = NULL;
   Obj_t **objs = NULL;
   Cbd_t cbd;
-  int frame_count = 0;
+  int
+    target_fps = 120,
+    frame_count = 0;
+  float draw_probability = 1;
   double
     previous_time = 0,
     current_time = 0;
@@ -734,6 +740,19 @@ main (int argc, char *argv[])
 
   while (!WindowShouldClose ())
   {
+
+    current_time = _ts_double (0);
+    frame_count++;
+
+    if (current_time - previous_time >= 1000.0)
+    {
+      draw_probability = fmin (1, (float) frame_count / target_fps);
+      //printf ("ACTUAL FPS: %d, TARGET FPS: %d, DRAW_PROBABILITY: %f\n", frame_count, target_fps, draw_probability);
+
+      frame_count = 0;
+      previous_time = current_time;
+    }
+
     //fc++;
     UpdateCamera (&camera, CAMERA_THIRD_PERSON);
 
@@ -745,7 +764,7 @@ main (int argc, char *argv[])
     if (shader_flag)
     {
       // draw cubes (formed by vertices) (must be inside Mode3D)
-      retval = point_cloud_draw (pc, camera);
+      retval = point_cloud_draw (pc, camera, draw_probability);
       if (retval != NULL) { goto CLEANUP; }
     }
     else
@@ -778,17 +797,6 @@ main (int argc, char *argv[])
     DrawText (TextFormat ("%zu cubes drawn", pc->cube_count), 15, 5, 20, GREEN);
     
     EndDrawing ();
-
-    current_time = _ts_double (0);
-    frame_count++;
-
-    if (current_time - previous_time >= 1000.0)
-    {
-      printf ("FPS: %d\n", frame_count);
-
-      frame_count = 0;
-      previous_time = current_time;
-    }
   }
 
 CLEANUP:
