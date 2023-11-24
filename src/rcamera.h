@@ -544,6 +544,7 @@ void UpdateCamera(Camera *camera, int mode)
     bool rotateUp = false;
     int gesture_mode = ((CameraXtra *) camera)->mode;
     int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
+    int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
 
     if (mode == CAMERA_ORBITAL)
     {
@@ -665,7 +666,8 @@ void UpdateCamera(Camera *camera, int mode)
 	}
       }
 
-      CameraMoveToTarget(camera, -mwm);
+      if (!ignore_scroll)
+	CameraMoveToTarget(camera, -mwm);
 
       if (IsKeyPressed(KEY_KP_SUBTRACT)) CameraMoveToTarget(camera, 2.0f);
       if (IsKeyPressed(KEY_KP_ADD)) CameraMoveToTarget(camera, -2.0f);

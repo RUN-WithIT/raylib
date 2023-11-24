@@ -5,6 +5,7 @@ typedef struct Camera3DXtra {
   Camera3D camera;
   int mode;
   int ignore_gesture;
+  int ignore_scroll;
 } CameraXtra;
 
 #endif
