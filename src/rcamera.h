@@ -207,7 +207,8 @@ RLAPI Matrix GetCameraProjectionMatrix(Camera* camera, float aspect);
 // dab
 //#define CAMERA_ORBITAL_SPEED                            0.5f       // Radians per second
 // Camera orbital speed in CAMERA_ORBITAL mode
-#define CAMERA_ORBITAL_SPEED                            0.5f       // Radians per second
+extern float g_orbital_speed;
+#define CAMERA_ORBITAL_SPEED                            g_orbital_speed
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -467,8 +468,6 @@ Matrix GetCameraProjectionMatrix(Camera *camera, float aspect)
     return MatrixIdentity();
 }
 
-extern float g_orbital_speed;
-#define CAMERA_ORBITAL_SPEED                            g_orbital_speed
 void SetCameraOrbitalSpeed (float degrees)
 {
   g_orbital_speed = DEG2RAD*degrees;
