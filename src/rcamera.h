@@ -21,7 +21,7 @@
 *
 *   LICENSE: zlib/libpng
 *
-*   Copyright (c) 2022-2023 Christoph Wagner (@Crydsch) & Ramon Santamaria (@raysan5)
+*   Copyright (c) 2022-2024 Christoph Wagner (@Crydsch) & Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -203,18 +203,11 @@ RLAPI Matrix GetCameraProjectionMatrix(Camera* camera, float aspect);
 
 // Camera mouse movement sensitivity
 #define CAMERA_MOUSE_MOVE_SENSITIVITY                   0.003f     // TODO: it should be independant of framerate
-#define CAMERA_MOUSE_SCROLL_SENSITIVITY                 1.5f
 
 // dab
 //#define CAMERA_ORBITAL_SPEED                            0.5f       // Radians per second
-
-
-#define CAMERA_FIRST_PERSON_STEP_TRIGONOMETRIC_DIVIDER  8.0f
-#define CAMERA_FIRST_PERSON_STEP_DIVIDER                30.0f
-#define CAMERA_FIRST_PERSON_WAVING_DIVIDER              200.0f
-
-// PLAYER (used by camera)
-#define PLAYER_MOVEMENT_SENSITIVITY                     20.0f
+// Camera orbital speed in CAMERA_ORBITAL mode
+#define CAMERA_ORBITAL_SPEED                            0.5f       // Radians per second
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -253,7 +246,7 @@ Vector3 GetCameraRight(Camera *camera)
     Vector3 forward = GetCameraForward(camera);
     Vector3 up = GetCameraUp(camera);
 
-    return Vector3CrossProduct(forward, up);
+    return Vector3Normalize(Vector3CrossProduct(forward, up));
 }
 
 // Moves the camera in its forward direction
@@ -535,143 +528,143 @@ void SetCameraMode(Camera *camera, int mode)
 // Camera mode: CAMERA_FREE, CAMERA_FIRST_PERSON, CAMERA_THIRD_PERSON, CAMERA_ORBITAL or CUSTOM
 void UpdateCamera(Camera *camera, int mode)
 {
-    Vector2 mousePositionDelta = GetMouseDelta();
-    Vector2 dragGestureDelta = GetGestureDragVector ();
+  Vector2 mousePositionDelta = GetMouseDelta();
+  Vector2 dragGestureDelta = GetGestureDragVector ();
 
-    bool moveInWorldPlane = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON));
-    bool rotateAroundTarget = ((mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
-    bool lockView = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
-    bool rotateUp = false;
-    int gesture_mode = ((CameraXtra *) camera)->mode;
-    int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
-    int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
+  bool moveInWorldPlane = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON));
+  bool rotateAroundTarget = ((mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
+  bool lockView = ((mode == CAMERA_FIRST_PERSON) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL));
+  bool rotateUp = false;
+  int gesture_mode = ((CameraXtra *) camera)->mode;
+  int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
+  int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
 
-    if (mode == CAMERA_ORBITAL)
+  if (mode == CAMERA_ORBITAL)
+  {
+    // Orbital can just orbit
+    Matrix rotation = MatrixRotate(GetCameraUp(camera), CAMERA_ORBITAL_SPEED*GetFrameTime());
+    Vector3 view = Vector3Subtract(camera->position, camera->target);
+    view = Vector3Transform(view, rotation);
+    camera->position = Vector3Add(camera->target, view);
+  }
+  else
+  {
+    // Camera movement
+    if (!IsGamepadAvailable(0))
     {
-        // Orbital can just orbit
-        Matrix rotation = MatrixRotate(GetCameraUp(camera), CAMERA_ORBITAL_SPEED*GetFrameTime());
-        Vector3 view = Vector3Subtract(camera->position, camera->target);
-        view = Vector3Transform(view, rotation);
-        camera->position = Vector3Add(camera->target, view);
+      if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_LEFT_CONTROL))
+      {
+	float mwm = mousePositionDelta.y + mousePositionDelta.x;
+	CameraMoveUp (camera, -mwm);
+      }
+      else if (IsKeyDown (KEY_LEFT_CONTROL))
+      {
+	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
+	float move = CAMERA_PAN_SPEED * (distance / 5);
+
+	if (fabs (mousePositionDelta.x) >= fabs (mousePositionDelta.y))
+	  mousePositionDelta.y = 0;
+	else
+	  mousePositionDelta.x = 0;
+
+	if (mousePositionDelta.x > 0)
+	  CameraMoveRight (camera, -move, moveInWorldPlane);
+	else if (mousePositionDelta.x < 0)
+	  CameraMoveRight (camera, move, moveInWorldPlane);
+	else if (mousePositionDelta.y > 0)
+	  CameraMoveForward (camera, move, moveInWorldPlane);
+	else if (mousePositionDelta.y < 0)
+	  CameraMoveForward (camera, -move, moveInWorldPlane);
+      }
+      else if (IsKeyDown (KEY_LEFT_SHIFT))
+      {
+	// Mouse support
+	CameraYaw(camera, -mousePositionDelta.x*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	CameraPitch(camera, -mousePositionDelta.y*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+      }
+      else if (IsKeyDown(KEY_LEFT_ALT))
+      {
+	float mwm = mousePositionDelta.y + mousePositionDelta.x;
+	CameraMoveToTarget(camera, -mwm);
+      }
+      else if (!ignore_gesture && IsGestureDetected (GESTURE_DRAG))
+      {
+	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
+	float move = CAMERA_PAN_SPEED * (distance / 16);
+
+	switch (gesture_mode)
+	{
+	case 0:
+	  // pan
+	  if (fabs (dragGestureDelta.x) >= fabs (dragGestureDelta.y))
+	    dragGestureDelta.y = 0;
+	  else
+	    dragGestureDelta.x = 0;
+
+	  if (dragGestureDelta.x > 0)
+	    CameraMoveRight (camera, -move, moveInWorldPlane);
+	  else if (dragGestureDelta.x < 0)
+	    CameraMoveRight (camera, move, moveInWorldPlane);
+	  else if (dragGestureDelta.y > 0)
+	    CameraMoveForward (camera, move, moveInWorldPlane);
+	  else if (dragGestureDelta.y < 0)
+	    CameraMoveForward (camera, -move, moveInWorldPlane);
+
+	  break;
+
+	case 1:
+	  // rotate
+	  if (fabs (dragGestureDelta.x) > fabs (dragGestureDelta.y))
+	  {
+	    dragGestureDelta.y = 0;
+	    CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	    CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	  }
+	  else
+	  {
+	    dragGestureDelta.x = 0;
+	    CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	    CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+	  }
+
+	  break;
+	}
+      }
     }
     else
     {
-      // Camera movement
-      if (!IsGamepadAvailable(0))
-      {
-	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_LEFT_CONTROL))
-	{
-	  float mwm = mousePositionDelta.y + mousePositionDelta.x;
-	  CameraMoveUp (camera, -mwm);
-	}
-	else if (IsKeyDown (KEY_LEFT_CONTROL))
-	{
-	    float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
-	    float move = CAMERA_PAN_SPEED * (distance / 5);
+      // Gamepad controller support
+      CameraYaw(camera, -(GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X) * 2)*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+      CameraPitch(camera, -(GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y) * 2)*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 
-	    if (fabs (mousePositionDelta.x) >= fabs (mousePositionDelta.y))
-	      mousePositionDelta.y = 0;
-	    else
-	      mousePositionDelta.x = 0;
-
-	    if (mousePositionDelta.x > 0)
-	      CameraMoveRight (camera, -move, moveInWorldPlane);
-	    else if (mousePositionDelta.x < 0)
-	      CameraMoveRight (camera, move, moveInWorldPlane);
-	    else if (mousePositionDelta.y > 0)
-	      CameraMoveForward (camera, move, moveInWorldPlane);
-	    else if (mousePositionDelta.y < 0)
-	      CameraMoveForward (camera, -move, moveInWorldPlane);
-	}
-	else if (IsKeyDown (KEY_LEFT_SHIFT))
-	{
-	  // Mouse support
-	  CameraYaw(camera, -mousePositionDelta.x*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	  CameraPitch(camera, -mousePositionDelta.y*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	}
-        else if (IsKeyDown(KEY_LEFT_ALT))
-        {
-          float mwm = mousePositionDelta.y + mousePositionDelta.x;
-          CameraMoveToTarget(camera, -mwm);
-        }
-	else if (!ignore_gesture && IsGestureDetected (GESTURE_DRAG))
-	{
-	  float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
-	  float move = CAMERA_PAN_SPEED * (distance / 16);
-
-	  switch (gesture_mode)
-	  {
-	  case 0:
-	    // pan
-	    if (fabs (dragGestureDelta.x) >= fabs (dragGestureDelta.y))
-	      dragGestureDelta.y = 0;
-	    else
-	      dragGestureDelta.x = 0;
-
-	    if (dragGestureDelta.x > 0)
-	      CameraMoveRight (camera, -move, moveInWorldPlane);
-	    else if (dragGestureDelta.x < 0)
-	      CameraMoveRight (camera, move, moveInWorldPlane);
-	    else if (dragGestureDelta.y > 0)
-	      CameraMoveForward (camera, move, moveInWorldPlane);
-	    else if (dragGestureDelta.y < 0)
-	      CameraMoveForward (camera, -move, moveInWorldPlane);
-
-	    break;
-
-	  case 1:
-	    // rotate
-	    if (fabs (dragGestureDelta.x) > fabs (dragGestureDelta.y))
-	    {
-	      dragGestureDelta.y = 0;
-	      CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	      CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	    }
-	    else
-	    {
-	      dragGestureDelta.x = 0;
-	      CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	      CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	    }
-
-	    break;
-	  }
-	}
-      }
-      else
-      {
-	// Gamepad controller support
-	CameraYaw(camera, -(GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X) * 2)*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	CameraPitch(camera, -(GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y) * 2)*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-
-	if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) <= -0.25f) CameraMoveForward(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
-	if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) <= -0.25f) CameraMoveRight(camera, -CAMERA_MOVE_SPEED, moveInWorldPlane);
-	if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) >= 0.25f) CameraMoveForward(camera, -CAMERA_MOVE_SPEED, moveInWorldPlane);
-	if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) >= 0.25f) CameraMoveRight(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
-      }
+      if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) <= -0.25f) CameraMoveForward(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
+      if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) <= -0.25f) CameraMoveRight(camera, -CAMERA_MOVE_SPEED, moveInWorldPlane);
+      if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y) >= 0.25f) CameraMoveForward(camera, -CAMERA_MOVE_SPEED, moveInWorldPlane);
+      if (GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X) >= 0.25f) CameraMoveRight(camera, CAMERA_MOVE_SPEED, moveInWorldPlane);
     }
+  }
 
-    if ((mode == CAMERA_CUSTOM) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL) || (mode == CAMERA_FREE))
+  if ((mode == CAMERA_CUSTOM) || (mode == CAMERA_THIRD_PERSON) || (mode == CAMERA_ORBITAL) || (mode == CAMERA_FREE))
+  {
+    // Zoom target distance
+    float mwm = GetMouseWheelMove ();
+
+    if (!ignore_gesture && gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
     {
-      // Zoom target distance
-      float mwm = GetMouseWheelMove ();
-
-      if (!ignore_gesture && gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
+      // zoom
+      if (fabs (dragGestureDelta.y) > fabs (dragGestureDelta.x))
       {
-	// zoom
-	if (fabs (dragGestureDelta.y) > fabs (dragGestureDelta.x))
-	{
-	  mwm = dragGestureDelta.y;
-	  mwm *= 3;
-	}
+	mwm = dragGestureDelta.y;
+	mwm *= 3;
       }
-
-      if (!ignore_scroll)
-	CameraMoveToTarget(camera, -mwm);
-
-      if (IsKeyPressed(KEY_KP_SUBTRACT)) CameraMoveToTarget(camera, 2.0f);
-      if (IsKeyPressed(KEY_KP_ADD)) CameraMoveToTarget(camera, -2.0f);
     }
+
+    if (!ignore_scroll)
+      CameraMoveToTarget(camera, -mwm);
+
+    if (IsKeyPressed(KEY_KP_SUBTRACT)) CameraMoveToTarget(camera, 2.0f);
+    if (IsKeyPressed(KEY_KP_ADD)) CameraMoveToTarget(camera, -2.0f);
+  }
 }
 #endif // !RCAMERA_STANDALONE
 

@@ -54,7 +54,7 @@
     raylib-parser is licensed under an unmodified zlib/libpng license, which is an OSI-certified,
     BSD-like license that allows static linking with closed source software:
 
-    Copyright (c) 2021-2023 Ramon Santamaria (@raysan5)
+    Copyright (c) 2021-2024 Ramon Santamaria (@raysan5)
 
 **********************************************************************************************/
 
@@ -447,11 +447,11 @@ int main(int argc, char* argv[])
             {
                 if (isFloat)
                 {
-                    defines[defineIndex].type = linePtr[j-1] == 'f' ? FLOAT : DOUBLE;
+                    defines[defineIndex].type = (linePtr[j-1] == 'f')? FLOAT : DOUBLE;
                 }
                 else
                 {
-                    defines[defineIndex].type = linePtr[j-1] == 'L' ? LONG : INT;
+                    defines[defineIndex].type = (linePtr[j-1] == 'L')? LONG : INT;
                     defines[defineIndex].isHex = isHex;
                 }
             }
@@ -534,8 +534,8 @@ int main(int argc, char* argv[])
                     {
                         // Found a valid number -> update largestType
                         int numberType;
-                        if (isFloat) numberType = valuePtr[c - 1] == 'f' ? FLOAT_MATH : DOUBLE_MATH;
-                        else numberType = valuePtr[c - 1] == 'L' ? LONG_MATH : INT_MATH;
+                        if (isFloat) numberType = (valuePtr[c - 1] == 'f')? FLOAT_MATH : DOUBLE_MATH;
+                        else numberType = (valuePtr[c - 1] == 'L')? LONG_MATH : INT_MATH;
 
                         if (numberType > largestType) largestType = numberType;
                     }
@@ -1075,7 +1075,7 @@ static void ShowCommandLineInfo(void)
     printf("//                                                                              //\n");
     printf("// more info and bugs-report: github.com/raysan5/raylib/parser                  //\n");
     printf("//                                                                              //\n");
-    printf("// Copyright (c) 2021-2023 Ramon Santamaria (@raysan5)                          //\n");
+    printf("// Copyright (c) 2021-2024 Ramon Santamaria (@raysan5)                          //\n");
     printf("//                                                                              //\n");
     printf("//////////////////////////////////////////////////////////////////////////////////\n\n");
 

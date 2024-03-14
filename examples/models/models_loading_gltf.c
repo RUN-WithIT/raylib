@@ -14,7 +14,7 @@
 *   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
 *   BSD-like license that allows static linking with closed source software
 *
-*   Copyright (c) 2020-2023 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2020-2024 Ramon Santamaria (@raysan5)
 *
 ********************************************************************************************/
 
@@ -44,7 +44,7 @@ int main(void)
     Model model = LoadModel("resources/models/gltf/robot.glb");
 
     // Load gltf model animations
-    unsigned int animsCount = 0;
+    int animsCount = 0;
     unsigned int animIndex = 0;
     unsigned int animCurrentFrame = 0;
     ModelAnimation *modelAnimations = LoadModelAnimations("resources/models/gltf/robot.glb", &animsCount);

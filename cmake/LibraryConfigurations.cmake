@@ -43,7 +43,7 @@ if (${PLATFORM} MATCHES "Desktop")
         if ("${OPENGL_LIBRARIES}" STREQUAL "")
             set(OPENGL_LIBRARIES "GL")
         endif ()
-        
+
         set(LIBS_PRIVATE m atomic pthread ${OPENGL_LIBRARIES} ${OSS_LIBRARY})
 
         if ("${CMAKE_SYSTEM_NAME}" MATCHES "(Net|Open)BSD")
@@ -86,10 +86,15 @@ elseif ("${PLATFORM}" MATCHES "DRM")
     find_library(DRM drm)
     find_library(GBM gbm)
 
-    if (NOT CMAKE_CROSSCOMPILING)
+    if (NOT CMAKE_CROSSCOMPILING OR NOT CMAKE_SYSROOT)
         include_directories(/usr/include/libdrm)
     endif ()
     set(LIBS_PRIVATE ${GLESV2} ${EGL} ${DRM} ${GBM} atomic pthread m dl)
+
+elseif ("${PLATFORM}" MATCHES "SDL")
+    find_package(SDL2 REQUIRED)
+    set(PLATFORM_CPP "PLATFORM_DESKTOP_SDL")
+    set(LIBS_PRIVATE SDL2::SDL2)
 
 endif ()
 
@@ -105,6 +110,8 @@ if (NOT ${OPENGL_VERSION} MATCHES "OFF")
         set(GRAPHICS "GRAPHICS_API_OPENGL_11")
     elseif (${OPENGL_VERSION} MATCHES "ES 2.0")
         set(GRAPHICS "GRAPHICS_API_OPENGL_ES2")
+    elseif (${OPENGL_VERSION} MATCHES "ES 3.0")
+        set(GRAPHICS "GRAPHICS_API_OPENGL_ES3")
     endif ()
     if ("${SUGGESTED_GRAPHICS}" AND NOT "${SUGGESTED_GRAPHICS}" STREQUAL "${GRAPHICS}")
         message(WARNING "You are overriding the suggested GRAPHICS=${SUGGESTED_GRAPHICS} with ${GRAPHICS}! This may fail")
