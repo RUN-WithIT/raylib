@@ -100,103 +100,103 @@ static Light CreateLight(int type, Vector3 position, Vector3 target, Color color
 static void UpdateLight(Shader shader, Light light);
 
 void
-EnableLight (Light lights[MAX_LIGHTS], int index)
+EnableLight (Light *light)
 {
-  lights[index].enabled = 1;
+  light->enabled = 1;
 }
 
 void
-DisableLight (Light lights[MAX_LIGHTS], int index)
+DisableLight (Light *light)
 {
-  lights[index].enabled = 0;
+  light->enabled = 0;
 }
 
 void
-ToggleLight (Light lights[MAX_LIGHTS], int index)
+ToggleLight (Light *light)
 {
-  lights[index].enabled = !(lights[index].enabled); 
+  light->enabled = !(light->enabled); 
 }
 
 void
-AnimateLight (Light lights[MAX_LIGHTS], int index)    
+AnimateLight (Light *light)
 {
-  float ratio = 0;
-  LightAnim light_anim = { 0 };
-  float ts = 0;
+  LightAnim *light_anim = &(light->light_anim);
+  float
+    ts = 0,
+    ratio = 0;
 
-  light_anim = lights[index].light_anim;
-
-  if (!(light_anim.enabled))
+  if (!(light_anim->enabled))
     return;
 
   ts = _ts_millis ();
 
-  if (ts < light_anim.start.ts)
+  if (ts < light_anim->start.ts)
     return;
 
   printf ("\nts: %f, start_ts: %f, end_ts: %f\n",
 	  ts,
-	  light_anim.start.ts,
-	  light_anim.end.ts);
+	  light_anim->start.ts,
+	  light_anim->end.ts);
 
   // anim logic here
-  ratio = (ts - light_anim.start.ts) / (light_anim.end.ts - light_anim.start.ts);
+  ratio = (ts - light_anim->start.ts) / (light_anim->end.ts - light_anim->start.ts);
 
   if (ratio >= 1)
   {
     ratio = 1;
-    lights[0].light_anim.enabled = 0;
+    light_anim->enabled = 0;
   }
     
   printf ("ratio: %f\n", ratio);
 
-  lights[index].color[0] = (light_anim.start.color.r + ((light_anim.end.color.r - light_anim.start.color.r) * ratio)) / 255.0;
-  lights[index].color[1] = (light_anim.start.color.g + ((light_anim.end.color.g - light_anim.start.color.g) * ratio)) / 255.0;
-  lights[index].color[2] = (light_anim.start.color.b + ((light_anim.end.color.b - light_anim.start.color.b) * ratio)) / 255.0;
-  lights[index].color[3] = (light_anim.start.color.a + ((light_anim.end.color.a - light_anim.start.color.a) * ratio)) / 255.0;
+  light->color[0] = (light_anim->start.color.r + ((light_anim->end.color.r - light_anim->start.color.r) * ratio)) / 255.0;
+  light->color[1] = (light_anim->start.color.g + ((light_anim->end.color.g - light_anim->start.color.g) * ratio)) / 255.0;
+  light->color[2] = (light_anim->start.color.b + ((light_anim->end.color.b - light_anim->start.color.b) * ratio)) / 255.0;
+  light->color[3] = (light_anim->start.color.a + ((light_anim->end.color.a - light_anim->start.color.a) * ratio)) / 255.0;
 
   printf ("color (%f, %f, %f, %f)\n",
-	  lights[index].color[0],
-	  lights[index].color[1],
-	  lights[index].color[2],
-	  lights[index].color[3]);
+	  light->color[0],
+	  light->color[1],
+	  light->color[2],
+	  light->color[3]);
 }
 
 void
-AddLightAnimation (Light lights[MAX_LIGHTS], int index, float delay, float duration, Color color)
+AddLightAnimation (Light *light, float delay, float duration, Color color)
 {
+  LightAnim *light_anim = &(light->light_anim);
   float ts = _ts_millis ();
 
-  memset (&(lights[index].light_anim), 0, sizeof (LightAnim));
+  memset (light_anim, 0, sizeof (LightAnim));
 
   ts += delay * 1000;
   duration *= 1000;
 
-  lights[index].light_anim.enabled = 1;
+  light_anim->enabled = 1;
 
   // ts
-  lights[index].light_anim.start.ts = ts;
-  lights[index].light_anim.end.ts = ts + duration;
+  light_anim->start.ts = ts;
+  light_anim->end.ts = ts + duration;
 
   // color
-  lights[index].light_anim.start.color.r = lights[index].color[0] * 255.0;
-  lights[index].light_anim.start.color.g = lights[index].color[1] * 255.0;
-  lights[index].light_anim.start.color.b = lights[index].color[2] * 255.0;
-  lights[index].light_anim.start.color.a = lights[index].color[3] * 255.0;
+  light_anim->start.color.r = light->color[0] * 255.0;
+  light_anim->start.color.g = light->color[1] * 255.0;
+  light_anim->start.color.b = light->color[2] * 255.0;
+  light_anim->start.color.a = light->color[3] * 255.0;
 
-  lights[index].light_anim.end.color = color;
+  light_anim->end.color = color;
 
   printf ("start_color (%d, %d, %d, %d)\n",
-	  lights[index].light_anim.start.color.r,
-	  lights[index].light_anim.start.color.g,
-	  lights[index].light_anim.start.color.b,
-	  lights[index].light_anim.start.color.a);
+	  light_anim->start.color.r,
+	  light_anim->start.color.g,
+	  light_anim->start.color.b,
+	  light_anim->start.color.a);
 
   printf ("end_color (%d, %d, %d, %d)\n",
-	  lights[index].light_anim.end.color.r,
-	  lights[index].light_anim.end.color.g,
-	  lights[index].light_anim.end.color.b,
-	  lights[index].light_anim.end.color.a);
+	  light_anim->end.color.r,
+	  light_anim->end.color.g,
+	  light_anim->end.color.b,
+	  light_anim->end.color.a);
 }
 
 //----------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ int main()
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //---------------------------------------------------------------------------------------
 
-    AddLightAnimation (lights, 0, 1, 5, YELLOW);
+    AddLightAnimation (&(lights[0]), 1, 5, YELLOW);
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
@@ -330,12 +330,12 @@ int main()
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
 
         // Check key inputs to enable/disable lights
-        if (IsKeyPressed(KEY_ONE))  { ToggleLight (lights, 0); }
+        if (IsKeyPressed(KEY_ONE))  { ToggleLight (&(lights[0])); }
 
         // Update light values on shader (actually, only enable/disable them)
         for (int i = 0; i < MAX_LIGHTS; i++)
 	{
-	  AnimateLight (lights, i);
+	  AnimateLight (&(lights[i]));
 	  UpdateLight (shader, lights[i]);
 	}
         //----------------------------------------------------------------------------------
