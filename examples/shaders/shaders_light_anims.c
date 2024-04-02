@@ -1,6 +1,8 @@
 #include "raylib.h"
 #include <time.h>
 #include <string.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION            330
@@ -10,11 +12,37 @@
 
 #include <stdlib.h>             // Required for: NULL
 
-#define MAX_LIGHTS  4           // Max dynamic lights supported by shader
+#define MAX_LIGHTS  1           // Max dynamic lights supported by shader
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
+
+static float
+_ts_millis ()
+{
+  static double a_start = 0.0;
+  double dtime = 0.0;
+  struct timespec _t;
+
+  /* offset time to bring millis into resolution */
+  if (a_start == 0.0)
+    {
+      a_start = 
+        clock_gettime (CLOCK_REALTIME, &_t);
+      a_start = (double)((_t.tv_sec) + (_t.tv_nsec / 1e9));
+      dtime = 0.0;
+    }
+  else
+    {
+      clock_gettime (CLOCK_REALTIME, &_t);
+      dtime = (double)((_t.tv_sec) + (_t.tv_nsec / 1e9));
+      dtime -= a_start;
+    }
+  dtime *= 1000.0;
+
+  return ((float)dtime);
+}
 
 // Light type
 typedef enum {
@@ -94,52 +122,81 @@ AnimateLight (Light lights[MAX_LIGHTS], int index)
 {
   float ratio = 0;
   LightAnim light_anim = { 0 };
-  time_t ts;
+  float ts = 0;
 
   light_anim = lights[index].light_anim;
 
   if (!(light_anim.enabled))
     return;
 
-  ts = time (NULL);
+  ts = _ts_millis ();
 
-  light_anim.enabled = ts <= light_anim.end.ts;
-
-  if (!(light_anim.enabled))
+  if (ts < light_anim.start.ts)
     return;
+
+  printf ("\nts: %f, start_ts: %f, end_ts: %f\n",
+	  ts,
+	  light_anim.start.ts,
+	  light_anim.end.ts);
 
   // anim logic here
   ratio = (ts - light_anim.start.ts) / (light_anim.end.ts - light_anim.start.ts);
 
-  lights[index].color[0] = light_anim.start.color.r + ((light_anim.end.color.r - light_anim.start.color.r) * ratio);
-  lights[index].color[1] = light_anim.start.color.g + ((light_anim.end.color.g - light_anim.start.color.g) * ratio);
-  lights[index].color[2] = light_anim.start.color.b + ((light_anim.end.color.b - light_anim.start.color.b) * ratio);
-  lights[index].color[3] = light_anim.start.color.a + ((light_anim.end.color.a - light_anim.start.color.a) * ratio);
+  if (ratio >= 1)
+  {
+    ratio = 1;
+    lights[0].light_anim.enabled = 0;
+  }
+    
+  printf ("ratio: %f\n", ratio);
+
+  lights[index].color[0] = (light_anim.start.color.r + ((light_anim.end.color.r - light_anim.start.color.r) * ratio)) / 255.0;
+  lights[index].color[1] = (light_anim.start.color.g + ((light_anim.end.color.g - light_anim.start.color.g) * ratio)) / 255.0;
+  lights[index].color[2] = (light_anim.start.color.b + ((light_anim.end.color.b - light_anim.start.color.b) * ratio)) / 255.0;
+  lights[index].color[3] = (light_anim.start.color.a + ((light_anim.end.color.a - light_anim.start.color.a) * ratio)) / 255.0;
+
+  printf ("color (%f, %f, %f, %f)\n",
+	  lights[index].color[0],
+	  lights[index].color[1],
+	  lights[index].color[2],
+	  lights[index].color[3]);
 }
 
 void
 AddLightAnimation (Light lights[MAX_LIGHTS], int index, float delay, float duration, Color color)
 {
-  LightAnim light_anim = lights[index].light_anim;
-  time_t ts = time (NULL);
+  float ts = _ts_millis ();
 
-  memset (&(light_anim), 0, sizeof (LightAnim));
+  memset (&(lights[index].light_anim), 0, sizeof (LightAnim));
 
   ts += delay * 1000;
   duration *= 1000;
 
-  light_anim.enabled = 1;
+  lights[index].light_anim.enabled = 1;
 
   // ts
-  light_anim.start.ts = ts;
-  light_anim.end.ts = ts + duration;
+  lights[index].light_anim.start.ts = ts;
+  lights[index].light_anim.end.ts = ts + duration;
 
   // color
-  light_anim.start.color.r = lights[index].color[0];
-  light_anim.start.color.g = lights[index].color[1];
-  light_anim.start.color.b = lights[index].color[2];
-  light_anim.start.color.a = lights[index].color[3];
-  light_anim.end.color = color;
+  lights[index].light_anim.start.color.r = lights[index].color[0] * 255.0;
+  lights[index].light_anim.start.color.g = lights[index].color[1] * 255.0;
+  lights[index].light_anim.start.color.b = lights[index].color[2] * 255.0;
+  lights[index].light_anim.start.color.a = lights[index].color[3] * 255.0;
+
+  lights[index].light_anim.end.color = color;
+
+  printf ("start_color (%d, %d, %d, %d)\n",
+	  lights[index].light_anim.start.color.r,
+	  lights[index].light_anim.start.color.g,
+	  lights[index].light_anim.start.color.b,
+	  lights[index].light_anim.start.color.a);
+
+  printf ("end_color (%d, %d, %d, %d)\n",
+	  lights[index].light_anim.end.color.r,
+	  lights[index].light_anim.end.color.g,
+	  lights[index].light_anim.end.color.b,
+	  lights[index].light_anim.end.color.a);
 }
 
 //----------------------------------------------------------------------------------
@@ -246,10 +303,7 @@ int main()
 
     // Create some lights
     Light lights[MAX_LIGHTS] = { 0 };
-    lights[0] = CreateLight(LIGHT_POINT, (Vector3){ -1.0f, 1.0f, -2.0f }, (Vector3){ 0.0f, 0.0f, 0.0f }, YELLOW, 4.0f, shader);
-    lights[1] = CreateLight(LIGHT_POINT, (Vector3){  2.0f, 1.0f,  1.0f }, (Vector3){ 0.0f, 0.0f, 0.0f }, GREEN , 3.3f, shader);
-    lights[2] = CreateLight(LIGHT_POINT, (Vector3){ -2.0f, 1.0f,  1.0f }, (Vector3){ 0.0f, 0.0f, 0.0f }, RED   , 8.3f, shader);
-    lights[3] = CreateLight(LIGHT_POINT, (Vector3){  1.0f, 1.0f, -2.0f }, (Vector3){ 0.0f, 0.0f, 0.0f }, BLUE  , 2.0f, shader);
+    lights[0] = CreateLight(LIGHT_POINT, (Vector3){  2.0f, 1.0f,  1.0f }, (Vector3){ 0.0f, 0.0f, 0.0f }, (Color) {0,0,0,0} , 3.3f, shader);
 
     // Setup material texture maps usage in shader
     // NOTE: By default, the texture maps are always used
@@ -262,10 +316,7 @@ int main()
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //---------------------------------------------------------------------------------------
 
-    AddLightAnimation (lights, 0, 5, 30, (Color) { 255, 0, 0, 255 });
-    AddLightAnimation (lights, 1, 5, 30, (Color) { 255, 0, 0, 255 });
-    AddLightAnimation (lights, 2, 5, 30, (Color) { 255, 0, 0, 255 });
-    AddLightAnimation (lights, 3, 5, 30, (Color) { 255, 0, 0, 255 });
+    AddLightAnimation (lights, 0, 1, 5, YELLOW);
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
@@ -279,10 +330,7 @@ int main()
         SetShaderValue(shader, shader.locs[SHADER_LOC_VECTOR_VIEW], cameraPos, SHADER_UNIFORM_VEC3);
 
         // Check key inputs to enable/disable lights
-        if (IsKeyPressed(KEY_ONE))   { ToggleLight (lights, 2); }
-        if (IsKeyPressed(KEY_TWO))   { ToggleLight (lights, 1); }
-        if (IsKeyPressed(KEY_THREE)) { ToggleLight (lights, 3); }
-        if (IsKeyPressed(KEY_FOUR))  { ToggleLight (lights, 0); }
+        if (IsKeyPressed(KEY_ONE))  { ToggleLight (lights, 0); }
 
         // Update light values on shader (actually, only enable/disable them)
         for (int i = 0; i < MAX_LIGHTS; i++)
