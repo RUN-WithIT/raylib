@@ -55,6 +55,8 @@ typedef struct
 {
   float ts;
   Color color;
+  Vector3 position;
+  Vector3 target;
 } Common;
     
 typedef struct
@@ -133,11 +135,6 @@ AnimateLight (Light *light)
   if (ts < light_anim->start.ts)
     return;
 
-  printf ("\nts: %f, start_ts: %f, end_ts: %f\n",
-	  ts,
-	  light_anim->start.ts,
-	  light_anim->end.ts);
-
   // anim logic here
   ratio = (ts - light_anim->start.ts) / (light_anim->end.ts - light_anim->start.ts);
 
@@ -147,22 +144,30 @@ AnimateLight (Light *light)
     light_anim->enabled = 0;
   }
     
-  printf ("ratio: %f\n", ratio);
-
+  // color
   light->color[0] = (light_anim->start.color.r + ((light_anim->end.color.r - light_anim->start.color.r) * ratio)) / 255.0;
   light->color[1] = (light_anim->start.color.g + ((light_anim->end.color.g - light_anim->start.color.g) * ratio)) / 255.0;
   light->color[2] = (light_anim->start.color.b + ((light_anim->end.color.b - light_anim->start.color.b) * ratio)) / 255.0;
   light->color[3] = (light_anim->start.color.a + ((light_anim->end.color.a - light_anim->start.color.a) * ratio)) / 255.0;
 
-  printf ("color (%f, %f, %f, %f)\n",
-	  light->color[0],
-	  light->color[1],
-	  light->color[2],
-	  light->color[3]);
+  // position
+  light->position.x = light_anim->start.position.x + ((light_anim->end.position.x - light_anim->start.position.x) * ratio);
+  light->position.y = light_anim->start.position.y + ((light_anim->end.position.y - light_anim->start.position.y) * ratio);
+  light->position.z = light_anim->start.position.z + ((light_anim->end.position.z - light_anim->start.position.z) * ratio);
+
+  // target
+  light->target.x = light_anim->start.target.x + ((light_anim->end.target.x - light_anim->start.target.x) * ratio);
+  light->target.y = light_anim->start.target.y + ((light_anim->end.target.y - light_anim->start.target.y) * ratio);
+  light->target.z = light_anim->start.target.z + ((light_anim->end.target.z - light_anim->start.target.z) * ratio);
 }
 
+// at
+// 0 - relative, 1 - absolute
 void
-AddLightAnimation (Light *light, float delay, float duration, Color color)
+AddLightAnimation (Light *light, float delay, float duration,
+		   Color color, Color color_at,
+		   Vector3 position, Vector3 position_at,
+		   Vector3 target, Vector3 target_at)
 {
   LightAnim *light_anim = &(light->light_anim);
   float ts = _ts_millis ();
@@ -184,19 +189,61 @@ AddLightAnimation (Light *light, float delay, float duration, Color color)
   light_anim->start.color.b = light->color[2] * 255.0;
   light_anim->start.color.a = light->color[3] * 255.0;
 
-  light_anim->end.color = color;
+  if (color_at.r)
+    light_anim->end.color.r = color.r;
+  else
+    light_anim->end.color.r = light_anim->start.color.r + color.r;
 
-  printf ("start_color (%d, %d, %d, %d)\n",
-	  light_anim->start.color.r,
-	  light_anim->start.color.g,
-	  light_anim->start.color.b,
-	  light_anim->start.color.a);
+  if (color_at.g)
+    light_anim->end.color.g = color.g;
+  else
+    light_anim->end.color.g = light_anim->start.color.g + color.g;
 
-  printf ("end_color (%d, %d, %d, %d)\n",
-	  light_anim->end.color.r,
-	  light_anim->end.color.g,
-	  light_anim->end.color.b,
-	  light_anim->end.color.a);
+  if (color_at.b)
+    light_anim->end.color.b = color.b;
+  else
+    light_anim->end.color.b = light_anim->start.color.b + color.b;
+
+  if (color_at.a)
+    light_anim->end.color.a = color.a;
+  else
+    light_anim->end.color.a = light_anim->start.color.a + color.a;
+
+  // position
+  light_anim->start.position = light->position;
+
+  if (position_at.x)
+    light_anim->end.position.x = position.x;
+  else
+    light_anim->end.position.x = light_anim->start.position.x + position.x;
+
+  if (position_at.y)
+    light_anim->end.position.y = position.y;
+  else
+    light_anim->end.position.y = light_anim->start.position.y + position.y;
+
+  if (position_at.z)
+    light_anim->end.position.z = position.z;
+  else
+    light_anim->end.position.z = light_anim->start.position.z + position.z;
+
+  // target
+  light_anim->start.target = light->target;
+
+  if (target_at.x)
+    light_anim->end.target.x = target.x;
+  else
+    light_anim->end.target.x = light_anim->start.target.x + target.x;
+
+  if (target_at.y)
+    light_anim->end.target.y = target.y;
+  else
+    light_anim->end.target.y = light_anim->start.target.y + target.y;
+
+  if (target_at.z)
+    light_anim->end.target.z = target.z;
+  else
+    light_anim->end.target.z = light_anim->start.target.z + target.z;
 }
 
 //----------------------------------------------------------------------------------
@@ -316,7 +363,10 @@ int main()
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //---------------------------------------------------------------------------------------
 
-    AddLightAnimation (&(lights[0]), 1, 5, YELLOW);
+    AddLightAnimation (&(lights[0]), 1, 5,
+		       YELLOW, (Color) { 1, 1, 1, 1 },
+		       (Vector3) { -3, 0.25, -3 }, (Vector3) { 0, 0, 0 },
+		       (Vector3) { 0,  0,     0 }, (Vector3) { 0, 0, 0 });
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
