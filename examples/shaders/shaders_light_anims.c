@@ -12,7 +12,7 @@
 
 #include <stdlib.h>             // Required for: NULL
 
-#define MAX_LIGHTS  1           // Max dynamic lights supported by shader
+#define MAX_LIGHTS  10           // Max dynamic lights supported by shader
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -57,17 +57,18 @@ typedef struct
   Color color;
   Vector3 position;
   Vector3 target;
-} Common;
+} LightFields;
     
 typedef struct
 {
   int enabled;
-  Common start;
-  Common end;
+  LightFields start;
+  LightFields end;
 } LightAnim;
     
 // Light data
-typedef struct {
+typedef struct
+{
   int type;
   int enabled;
   Vector3 position;
@@ -246,6 +247,35 @@ AddLightAnimation (Light *light, float delay, float duration,
     light_anim->end.target.z = light_anim->start.target.z + target.z;
 }
 
+void
+AnimateLights (Shader shader, Light lights[MAX_LIGHTS])
+{
+  int i = 0;
+
+  for (i = 0; i < MAX_LIGHTS; i++)
+  {
+    AnimateLight (&(lights[i]));
+    UpdateLight (shader, lights[i]);
+  }
+}
+
+void
+DrawLightSpheres (Light lights[MAX_LIGHTS])    
+{
+  int i = 0;
+  Color color = BLACK;
+
+  for (i = 0; i < MAX_LIGHTS; i++)
+  {
+    color = (Color) { lights[i].color[0] * 255, lights[i].color[1] * 255, lights[i].color[2] * 255, lights[i].color[3] * 255 };
+		    
+    if (lights[i].enabled)
+      DrawSphereEx (lights[i].position, 0.2f, 8, 8, color);
+    else
+      DrawSphereWires (lights[i].position, 0.2f, 8, 8, ColorAlpha (color, 0.3f));
+  }
+}
+
 //----------------------------------------------------------------------------------
 // Main Entry Point
 //----------------------------------------------------------------------------------
@@ -253,8 +283,8 @@ int main()
 {
     // Initialization
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 800;
-    const int screenHeight = 450;
+    const int screenWidth = 1600;
+    const int screenHeight = 900;
 
     SetConfigFlags(FLAG_MSAA_4X_HINT);
     InitWindow(screenWidth, screenHeight, "raylib [shaders] example - basic pbr");
@@ -382,12 +412,8 @@ int main()
         // Check key inputs to enable/disable lights
         if (IsKeyPressed(KEY_ONE))  { ToggleLight (&(lights[0])); }
 
-        // Update light values on shader (actually, only enable/disable them)
-        for (int i = 0; i < MAX_LIGHTS; i++)
-	{
-	  AnimateLight (&(lights[i]));
-	  UpdateLight (shader, lights[i]);
-	}
+	AnimateLights (shader, lights);
+
         //----------------------------------------------------------------------------------
 
         // Draw
@@ -415,14 +441,9 @@ int main()
                 DrawModel(car, (Vector3){ 0.0f, 0.0f, 0.0f }, 0.005f, WHITE);   // Draw car model
 
                 // Draw spheres to show the lights positions
-                for (int i = 0; i < MAX_LIGHTS; i++)
-                {
-                    Color lightColor = (Color){ lights[i].color[0]*255, lights[i].color[1]*255, lights[i].color[2]*255, lights[i].color[3]*255 };
-                    
-                    if (lights[i].enabled) DrawSphereEx(lights[i].position, 0.2f, 8, 8, lightColor);
-                    else DrawSphereWires(lights[i].position, 0.2f, 8, 8, ColorAlpha(lightColor, 0.3f));
-                }
                 
+		DrawLightSpheres (lights);
+		
             EndMode3D();
             
             DrawText("Toggle lights: [1][2][3][4]", 10, 40, 20, LIGHTGRAY);
