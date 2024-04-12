@@ -537,6 +537,7 @@ void UpdateCamera(Camera *camera, int mode)
   int gesture_mode = ((CameraXtra *) camera)->mode;
   int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
   int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
+  int ignore_rotate = ((CameraXtra *) camera)->ignore_rotate;
 
   if (mode == CAMERA_ORBITAL)
   {
@@ -575,7 +576,7 @@ void UpdateCamera(Camera *camera, int mode)
 	else if (mousePositionDelta.y < 0)
 	  CameraMoveForward (camera, -move, moveInWorldPlane);
       }
-      else if (IsKeyDown (KEY_LEFT_SHIFT))
+      else if (!ignore_rotate && IsKeyDown (KEY_LEFT_SHIFT))
       {
 	// Mouse support
 	CameraYaw(camera, -mousePositionDelta.x*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
