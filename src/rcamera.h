@@ -538,6 +538,7 @@ void UpdateCamera(Camera *camera, int mode)
   int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
   int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
   int ignore_rotate = ((CameraXtra *) camera)->ignore_rotate;
+  int ignore_pan = ((CameraXtra *) camera)->ignore_pan;
 
   if (mode == CAMERA_ORBITAL)
   {
@@ -557,7 +558,7 @@ void UpdateCamera(Camera *camera, int mode)
 	float mwm = mousePositionDelta.y + mousePositionDelta.x;
 	CameraMoveUp (camera, -mwm);
       }
-      else if (IsKeyDown (KEY_LEFT_CONTROL))
+      else if (!ignore_pan && IsKeyDown (KEY_LEFT_CONTROL))
       {
 	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
 	float move = CAMERA_PAN_SPEED * (distance / 16);
