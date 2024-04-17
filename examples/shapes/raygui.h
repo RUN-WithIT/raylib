@@ -712,8 +712,10 @@ RAYGUIAPI int GuiScrollPanel(Rectangle bounds, const char *text, Rectangle conte
 // Basic controls set
 RAYGUIAPI int GuiLabel(Rectangle bounds, const char *text);                                            // Label control, shows text
 RAYGUIAPI int GuiButton(Rectangle bounds, const char *text);                                           // Button control, returns true when clicked
+RAYGUIAPI int GuiButtonRounded(Rectangle bounds, int border_width, float roudness, int segments, const char *text);
 RAYGUIAPI int GuiLabelButton(Rectangle bounds, const char *text);                                      // Label button control, show true when clicked
 RAYGUIAPI int GuiToggle(Rectangle bounds, const char *text, bool *active);                             // Toggle Button control, returns true when active
+RAYGUIAPI int GuiToggleRounded(Rectangle bounds, int border_width, float roudness, int segment, const char *text, bool *active);
 RAYGUIAPI int GuiToggleGroup(Rectangle bounds, const char *text, int *active);                         // Toggle Group control, returns active toggle index
 RAYGUIAPI int GuiToggleSlider(Rectangle bounds, const char *text, int *active);                        // Toggle Slider control, returns true when clicked
 RAYGUIAPI int GuiCheckBox(Rectangle bounds, const char *text, bool *checked);                          // Check Box control, returns true when active
@@ -1989,6 +1991,39 @@ int GuiButton(Rectangle bounds, const char *text)
     return result;      // Button pressed: result = 1
 }
 
+int GuiButtonRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text)
+{
+  int result = 0;
+  GuiState state = guiState;
+
+  // Update control
+  //--------------------------------------------------------------------
+  if ((state != STATE_DISABLED) && !guiLocked && !guiSliderDragging)
+  {
+    Vector2 mousePoint = GetMousePosition();
+
+    // Check button state
+    if (CheckCollisionPointRec(mousePoint, bounds))
+    {
+      if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) state = STATE_PRESSED;
+      else state = STATE_FOCUSED;
+
+      if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) result = 1;
+    }
+  }
+  //--------------------------------------------------------------------
+
+  // Draw control
+  //--------------------------------------------------------------------
+  GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(BUTTON, BORDER + (state*3))), GetColor(GuiGetStyle(BUTTON, BASE + (state*3))));
+  GuiDrawText(text, GetTextBounds(BUTTON, bounds), GuiGetStyle(BUTTON, TEXT_ALIGNMENT), GetColor(GuiGetStyle(BUTTON, TEXT + (state*3))));
+
+  if (state == STATE_FOCUSED) GuiTooltip(bounds);
+  //------------------------------------------------------------------
+
+  return result;      // Button pressed: result = 1
+}
+
 // Label button control
 int GuiLabelButton(Rectangle bounds, const char *text)
 {
@@ -2070,6 +2105,53 @@ int GuiToggle(Rectangle bounds, const char *text, bool *active)
     //--------------------------------------------------------------------
 
     return result;
+}
+
+int GuiToggleRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text, bool *active)
+{
+  int result = 0;
+  GuiState state = guiState;
+
+  bool temp = false;
+  if (active == NULL) active = &temp;
+
+  // Update control
+  //--------------------------------------------------------------------
+  if ((state != STATE_DISABLED) && !guiLocked && !guiSliderDragging)
+  {
+    Vector2 mousePoint = GetMousePosition();
+
+    // Check toggle button state
+    if (CheckCollisionPointRec(mousePoint, bounds))
+    {
+      if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) state = STATE_PRESSED;
+      else if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+      {
+	state = STATE_NORMAL;
+	*active = !(*active);
+      }
+      else state = STATE_FOCUSED;
+    }
+  }
+  //--------------------------------------------------------------------
+
+  // Draw control
+  //--------------------------------------------------------------------
+  if (state == STATE_NORMAL)
+  {
+    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TOGGLE, ((*active)? BORDER_COLOR_PRESSED : (BORDER + state*3)))), GetColor(GuiGetStyle(TOGGLE, ((*active)? BASE_COLOR_PRESSED : (BASE + state*3)))));
+    GuiDrawText(text, GetTextBounds(TOGGLE, bounds), GuiGetStyle(TOGGLE, TEXT_ALIGNMENT), GetColor(GuiGetStyle(TOGGLE, ((*active)? TEXT_COLOR_PRESSED : (TEXT + state*3)))));
+  }
+  else
+  {
+    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TOGGLE, BORDER + state*3)), GetColor(GuiGetStyle(TOGGLE, BASE + state*3)));
+    GuiDrawText(text, GetTextBounds(TOGGLE, bounds), GuiGetStyle(TOGGLE, TEXT_ALIGNMENT), GetColor(GuiGetStyle(TOGGLE, TEXT + state*3)));
+  }
+
+  if (state == STATE_FOCUSED) GuiTooltip(bounds);
+  //--------------------------------------------------------------------
+
+  return result;
 }
 
 // Toggle Group control, returns toggled button codepointIndex
