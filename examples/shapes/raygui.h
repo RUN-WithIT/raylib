@@ -726,6 +726,8 @@ RAYGUIAPI int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMo
 
 RAYGUIAPI int GuiSlider(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Slider control, returns selected value
 RAYGUIAPI int GuiSliderBar(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Slider Bar control, returns selected value
+RAYGUIAPI int GuiSliderRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Slider control, returns selected value
+RAYGUIAPI int GuiSliderBarRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Slider Bar control, returns selected value
 RAYGUIAPI int GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Progress Bar control, shows current progress value
 RAYGUIAPI int GuiStatusBar(Rectangle bounds, const char *text);                                        // Status Bar control, shows info text
 RAYGUIAPI int GuiDummyRec(Rectangle bounds, const char *text);                                         // Dummy control for placeholders
@@ -3059,16 +3061,153 @@ int GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight, 
     return result;
 }
 
+int GuiSliderRoundedPro(Rectangle bounds, int border_width, float roundness, int segments, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue, int sliderWidth)
+{
+  int result = 0;
+  float oldValue = *value;
+  GuiState state = guiState;
+
+  float temp = (maxValue - minValue)/2.0f;
+  if (value == NULL) value = &temp;
+
+  int sliderValue = (int)(((*value - minValue)/(maxValue - minValue))*(bounds.width - 2*GuiGetStyle(SLIDER, BORDER_WIDTH)));
+
+  Rectangle slider = { bounds.x, bounds.y + GuiGetStyle(SLIDER, BORDER_WIDTH) + GuiGetStyle(SLIDER, SLIDER_PADDING),
+    0, bounds.height - 2*GuiGetStyle(SLIDER, BORDER_WIDTH) - 2*GuiGetStyle(SLIDER, SLIDER_PADDING) };
+
+  if (sliderWidth > 0)        // Slider
+  {
+    slider.x += (sliderValue - sliderWidth/2);
+    slider.width = (float)sliderWidth;
+  }
+  else if (sliderWidth == 0)  // SliderBar
+  {
+    slider.x += GuiGetStyle(SLIDER, BORDER_WIDTH);
+    slider.width = (float)sliderValue;
+  }
+
+  // Update control
+  //--------------------------------------------------------------------
+  if ((state != STATE_DISABLED) && !guiLocked)
+  {
+    Vector2 mousePoint = GetMousePosition();
+
+    if (guiSliderDragging) // Keep dragging outside of bounds
+    {
+      if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+      {
+	if (CHECK_BOUNDS_ID(bounds, guiSliderActive))
+	{
+	  state = STATE_PRESSED;
+
+	  // Get equivalent value and slider position from mousePosition.x
+	  *value = ((maxValue - minValue)*(mousePoint.x - (float)(bounds.x + sliderWidth/2)))/(float)(bounds.width - sliderWidth) + minValue;
+	}
+      }
+      else
+      {
+	guiSliderDragging = false;
+	guiSliderActive = RAYGUI_CLITERAL(Rectangle){ 0, 0, 0, 0 };
+      }
+    }
+    else if (CheckCollisionPointRec(mousePoint, bounds))
+    {
+      if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+      {
+	state = STATE_PRESSED;
+	guiSliderDragging = true;
+	guiSliderActive = bounds; // Store bounds as an identifier when dragging starts
+
+	if (!CheckCollisionPointRec(mousePoint, slider))
+	{
+	  // Get equivalent value and slider position from mousePosition.x
+	  *value = ((maxValue - minValue)*(mousePoint.x - (float)(bounds.x + sliderWidth/2)))/(float)(bounds.width - sliderWidth) + minValue;
+
+	  if (sliderWidth > 0) slider.x = mousePoint.x - slider.width/2;      // Slider
+	  else if (sliderWidth == 0) slider.width = (float)sliderValue;       // SliderBar
+	}
+      }
+      else state = STATE_FOCUSED;
+    }
+
+    if (*value > maxValue) *value = maxValue;
+    else if (*value < minValue) *value = minValue;
+  }
+
+  // Control value change check
+  if(oldValue == *value) result = 0;
+  else result = 1;
+
+  // Bar limits check
+  if (sliderWidth > 0)        // Slider
+  {
+    if (slider.x <= (bounds.x + GuiGetStyle(SLIDER, BORDER_WIDTH))) slider.x = bounds.x + GuiGetStyle(SLIDER, BORDER_WIDTH);
+    else if ((slider.x + slider.width) >= (bounds.x + bounds.width)) slider.x = bounds.x + bounds.width - slider.width - GuiGetStyle(SLIDER, BORDER_WIDTH);
+  }
+  else if (sliderWidth == 0)  // SliderBar
+  {
+    if (slider.width > bounds.width) slider.width = bounds.width - 2*GuiGetStyle(SLIDER, BORDER_WIDTH);
+  }
+  //--------------------------------------------------------------------
+
+  // Draw control
+  //--------------------------------------------------------------------
+  GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(SLIDER, BORDER + (state*3))), GetColor(GuiGetStyle(SLIDER, (state != STATE_DISABLED)?  BASE_COLOR_NORMAL : BASE_COLOR_DISABLED)));
+
+  // Draw slider internal bar (depends on state)
+  if (state == STATE_NORMAL)       GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, BASE_COLOR_PRESSED)));
+  else if (state == STATE_FOCUSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_FOCUSED)));
+  else if (state == STATE_PRESSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_PRESSED)));
+
+  // Draw left/right text if provided
+  if (textLeft != NULL)
+  {
+    Rectangle textBounds = { 0 };
+    textBounds.width = (float)GetTextWidth(textLeft);
+    textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
+    textBounds.x = bounds.x - textBounds.width - GuiGetStyle(SLIDER, TEXT_PADDING);
+    textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+
+    GuiDrawText(textLeft, textBounds, TEXT_ALIGN_RIGHT, GetColor(GuiGetStyle(SLIDER, TEXT + (state*3))));
+  }
+
+  if (textRight != NULL)
+  {
+    Rectangle textBounds = { 0 };
+    textBounds.width = (float)GetTextWidth(textRight);
+    textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
+    textBounds.x = bounds.x + bounds.width + GuiGetStyle(SLIDER, TEXT_PADDING);
+    textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+
+    GuiDrawText(textRight, textBounds, TEXT_ALIGN_LEFT, GetColor(GuiGetStyle(SLIDER, TEXT + (state*3))));
+  }
+  //--------------------------------------------------------------------
+
+  return result;
+}
+
 // Slider control extended, returns selected value and has text
 int GuiSlider(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue)
 {
     return GuiSliderPro(bounds, textLeft, textRight, value, minValue, maxValue, GuiGetStyle(SLIDER, SLIDER_WIDTH));
 }
 
+// Slider control extended, returns selected value and has text
+int GuiSliderRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue)
+{
+  return GuiSliderRoundedPro(bounds, border_width, roundness, segments, textLeft, textRight, value, minValue, maxValue, GuiGetStyle(SLIDER, SLIDER_WIDTH));
+}
+
 // Slider Bar control extended, returns selected value
 int GuiSliderBar(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue)
 {
     return GuiSliderPro(bounds, textLeft, textRight, value, minValue, maxValue, 0);
+}
+
+// Slider Bar control extended, returns selected value
+int GuiSliderBarRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue)
+{
+  return GuiSliderRoundedPro(bounds, border_width, roundness, segments, textLeft, textRight, value, minValue, maxValue, 0);
 }
 
 // Progress Bar control extended, shows current progress value
