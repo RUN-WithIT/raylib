@@ -3589,9 +3589,17 @@ int GuiSliderRoundedPro(Rectangle bounds, int border_width, float roundness, int
   GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(SLIDER, BORDER + (state*3))), GetColor(GuiGetStyle(SLIDER, (state != STATE_DISABLED)?  BASE_COLOR_NORMAL : BASE_COLOR_DISABLED)));
 
   // Draw slider internal bar (depends on state)
-  if (state == STATE_NORMAL)       GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, BASE_COLOR_PRESSED)));
-  else if (state == STATE_FOCUSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_FOCUSED)));
-  else if (state == STATE_PRESSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_PRESSED)));
+  if (slider.width > slider.height)
+  {
+    if (state == STATE_NORMAL)       GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, BASE_COLOR_PRESSED)));
+    else if (state == STATE_FOCUSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_FOCUSED)));
+    else if (state == STATE_PRESSED) GuiDrawRectangleRounded(slider, border_width, roundness, segments, BLANK, GetColor(GuiGetStyle(SLIDER, TEXT_COLOR_PRESSED)));
+  }
+
+  if (slider.width > slider.height)
+    DrawCircle ((slider.x + slider.width) -  (slider.height / 2), slider.y + (slider.height / 2), (slider.height / 2), WHITE);
+  else
+    DrawCircle ((slider.x + slider.height) - (slider.height / 2), slider.y + (slider.height / 2), (slider.height / 2), WHITE);
 
   // Draw left/right text if provided
   if (textLeft != NULL)
