@@ -4019,12 +4019,23 @@ int GuiListViewRoundedEx(Rectangle bounds, int border_width, float roundness, in
   //--------------------------------------------------------------------
   GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER + state*3)), GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
+  float delta = itemBounds.width * 0.025;
+
+  itemBounds.x += delta / 2;
+  itemBounds.width -= delta;
+
+  itemBounds.y *= 1.15;
+  visibleItems--;
+
+  if (visibleItems < 0)
+    visibleItems = 0;
+
   // Draw visible items
   for (int i = 0; ((i < visibleItems) && (text != NULL)); i++)
   {
     if (state == STATE_DISABLED)
     {
-      if ((startIndex + i) == itemSelected) GuiDrawRectangle(itemBounds, GuiGetStyle(LISTVIEW, BORDER_WIDTH), GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_DISABLED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_DISABLED)));
+      if ((startIndex + i) == itemSelected) GuiDrawRectangleRounded(itemBounds, border_width, 1, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_DISABLED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_DISABLED)));
 
       GuiDrawText(text[startIndex + i], GetTextBounds(DEFAULT, itemBounds), GuiGetStyle(LISTVIEW, TEXT_ALIGNMENT), GetColor(GuiGetStyle(LISTVIEW, TEXT_COLOR_DISABLED)));
     }
@@ -4033,13 +4044,13 @@ int GuiListViewRoundedEx(Rectangle bounds, int border_width, float roundness, in
       if (((startIndex + i) == itemSelected) && (active != NULL))
       {
 	// Draw item selected
-	GuiDrawRectangleRounded(itemBounds, border_width, roundness, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_PRESSED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_PRESSED)));
+	GuiDrawRectangleRounded(itemBounds, border_width, 1, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_PRESSED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_PRESSED)));
 	GuiDrawText(text[startIndex + i], GetTextBounds(DEFAULT, itemBounds), GuiGetStyle(LISTVIEW, TEXT_ALIGNMENT), GetColor(GuiGetStyle(LISTVIEW, TEXT_COLOR_PRESSED)));
       }
       else if (((startIndex + i) == itemFocused)) // && (focus != NULL))  // NOTE: We want items focused, despite not returned!
       {
 	// Draw item focused
-	GuiDrawRectangleRounded(itemBounds, border_width, roundness, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_FOCUSED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_FOCUSED)));
+	GuiDrawRectangleRounded(itemBounds, border_width, 1, segments, GetColor(GuiGetStyle(LISTVIEW, BORDER_COLOR_FOCUSED)), GetColor(GuiGetStyle(LISTVIEW, BASE_COLOR_FOCUSED)));
 	GuiDrawText(text[startIndex + i], GetTextBounds(DEFAULT, itemBounds), GuiGetStyle(LISTVIEW, TEXT_ALIGNMENT), GetColor(GuiGetStyle(LISTVIEW, TEXT_COLOR_FOCUSED)));
       }
       else
