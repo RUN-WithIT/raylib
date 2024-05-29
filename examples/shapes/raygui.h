@@ -706,6 +706,7 @@ RAYGUIAPI int GuiWindowBox(Rectangle bounds, const char *title);                
 RAYGUIAPI int GuiGroupBox(Rectangle bounds, const char *text);                                         // Group Box control with text name
 RAYGUIAPI int GuiLine(Rectangle bounds, const char *text);                                             // Line separator control, could contain text
 RAYGUIAPI int GuiPanel(Rectangle bounds, const char *text);                                            // Panel control, useful to group controls
+RAYGUIAPI int GuiPanelRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text);
 RAYGUIAPI int GuiTabBar(Rectangle bounds, const char **text, int count, int *active);                  // Tab Bar control, returns TAB to be closed or -1
 RAYGUIAPI int GuiScrollPanel(Rectangle bounds, const char *text, Rectangle content, Vector2 *scroll, Rectangle *view); // Scroll Panel control
 
@@ -723,6 +724,7 @@ RAYGUIAPI int GuiCheckBoxRounded(Rectangle bounds, int border_width, float round
 RAYGUIAPI int GuiComboBox(Rectangle bounds, const char *text, int *active);                            // Combo Box control, returns selected item index
 
 RAYGUIAPI int GuiDropdownBox(Rectangle bounds, const char *text, int *active, bool editMode);          // Dropdown Box control, returns selected item
+RAYGUIAPI int GuiDropdownBoxRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text, int *active, bool editMode);          // Dropdown Box control, returns selected item
 RAYGUIAPI int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Spinner control, returns selected value
 RAYGUIAPI int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Value Box control, updates input text with numbers
 RAYGUIAPI int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode);                   // Text Box control, updates input text
@@ -1706,6 +1708,37 @@ int GuiPanel(Rectangle bounds, const char *text)
     return result;
 }
 
+int GuiPanelRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text)
+{
+    #if !defined(RAYGUI_PANEL_BORDER_WIDTH)
+        #define RAYGUI_PANEL_BORDER_WIDTH   1
+    #endif
+
+    int result = 0;
+    GuiState state = guiState;
+
+    // Text will be drawn as a header bar (if provided)
+    Rectangle statusBar = { bounds.x, bounds.y, bounds.width, (float)RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT };
+    if ((text != NULL) && (bounds.height < RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT*2.0f)) bounds.height = RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT*2.0f;
+
+    if (text != NULL)
+    {
+        // Move panel bounds after the header bar
+        bounds.y += (float)RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT - 1;
+        bounds.height -= (float)RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT - 1;
+    }
+
+    // Draw control
+    //--------------------------------------------------------------------
+    if (text != NULL) GuiStatusBar(statusBar, text);  // Draw panel header as status bar
+
+    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(DEFAULT, (state == STATE_DISABLED)? BORDER_COLOR_DISABLED: LINE_COLOR)),
+                     GetColor(GuiGetStyle(DEFAULT, (state == STATE_DISABLED)? BASE_COLOR_DISABLED : BACKGROUND_COLOR)));
+    //--------------------------------------------------------------------
+
+    return result;
+}
+
 // Tab Bar control
 // NOTE: Using GuiToggle() for the TABS
 int GuiTabBar(Rectangle bounds, const char **text, int count, int *active)
@@ -2570,6 +2603,122 @@ int GuiDropdownBox(Rectangle bounds, const char *text, int *active, bool editMod
             else if (i == itemFocused)
             {
                 GuiDrawRectangle(itemBounds, GuiGetStyle(DROPDOWNBOX, BORDER_WIDTH), GetColor(GuiGetStyle(DROPDOWNBOX, BORDER_COLOR_FOCUSED)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE_COLOR_FOCUSED)));
+                GuiDrawText(items[i], GetTextBounds(DROPDOWNBOX, itemBounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT_COLOR_FOCUSED)));
+            }
+            else GuiDrawText(items[i], GetTextBounds(DROPDOWNBOX, itemBounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL)));
+        }
+    }
+
+    // Draw arrows (using icon if available)
+#if defined(RAYGUI_NO_ICONS)
+    GuiDrawText("v", RAYGUI_CLITERAL(Rectangle){ bounds.x + bounds.width - GuiGetStyle(DROPDOWNBOX, ARROW_PADDING), bounds.y + bounds.height/2 - 2, 10, 10 },
+                TEXT_ALIGN_CENTER, GetColor(GuiGetStyle(DROPDOWNBOX, TEXT + (state*3))));
+#else
+    GuiDrawText("#120#", RAYGUI_CLITERAL(Rectangle){ bounds.x + bounds.width - GuiGetStyle(DROPDOWNBOX, ARROW_PADDING), bounds.y + bounds.height/2 - 6, 10, 10 },
+                TEXT_ALIGN_CENTER, GetColor(GuiGetStyle(DROPDOWNBOX, TEXT + (state*3))));   // ICON_ARROW_DOWN_FILL
+#endif
+    //--------------------------------------------------------------------
+
+    *active = itemSelected;
+
+    // TODO: Use result to return more internal states: mouse-press out-of-bounds, mouse-press over selected-item...
+    return result;   // Mouse click: result = 1
+}
+
+int GuiDropdownBoxRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text, int *active, bool editMode)
+{
+    int result = 0;
+    GuiState state = guiState;
+
+    int itemSelected = *active;
+    int itemFocused = -1;
+
+    // Get substrings items from text (items pointers, lengths and count)
+    int itemCount = 0;
+    const char **items = GuiTextSplit(text, ';', &itemCount, NULL);
+
+    Rectangle boundsOpen = bounds;
+    boundsOpen.height = (itemCount + 1)*(bounds.height + GuiGetStyle(DROPDOWNBOX, DROPDOWN_ITEMS_SPACING));
+
+    Rectangle itemBounds = bounds;
+
+    // Update control
+    //--------------------------------------------------------------------
+    if ((state != STATE_DISABLED) && (editMode || !guiLocked) && (itemCount > 1) && !guiSliderDragging)
+    {
+        Vector2 mousePoint = GetMousePosition();
+
+        if (editMode)
+        {
+            state = STATE_PRESSED;
+
+            // Check if mouse has been pressed or released outside limits
+            if (!CheckCollisionPointRec(mousePoint, boundsOpen))
+            {
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) result = 1;
+            }
+
+            // Check if already selected item has been pressed again
+            if (CheckCollisionPointRec(mousePoint, bounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) result = 1;
+
+            // Check focused and selected item
+            for (int i = 0; i < itemCount; i++)
+            {
+                // Update item rectangle y position for next item
+                itemBounds.y += (bounds.height + GuiGetStyle(DROPDOWNBOX, DROPDOWN_ITEMS_SPACING));
+
+                if (CheckCollisionPointRec(mousePoint, itemBounds))
+                {
+                    itemFocused = i;
+                    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON))
+                    {
+                        itemSelected = i;
+                        result = 1;         // Item selected
+                    }
+                    break;
+                }
+            }
+
+            itemBounds = bounds;
+        }
+        else
+        {
+            if (CheckCollisionPointRec(mousePoint, bounds))
+            {
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+                {
+                    result = 1;
+                    state = STATE_PRESSED;
+                }
+                else state = STATE_FOCUSED;
+            }
+        }
+    }
+    //--------------------------------------------------------------------
+
+    // Draw control
+    //--------------------------------------------------------------------
+    if (editMode) GuiPanelRounded (boundsOpen, 1, roundness, segments, NULL);
+
+    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(DROPDOWNBOX, BORDER + state*3)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE + state*3)));
+    GuiDrawText(items[itemSelected], GetTextBounds(DROPDOWNBOX, bounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT + state*3)));
+
+    if (editMode)
+    {
+        // Draw visible items
+        for (int i = 0; i < itemCount; i++)
+        {
+            // Update item rectangle y position for next item
+            itemBounds.y += (bounds.height + GuiGetStyle(DROPDOWNBOX, DROPDOWN_ITEMS_SPACING));
+
+            if (i == itemSelected)
+            {
+		GuiDrawRectangleRounded(itemBounds, border_width, roundness, segments, GetColor(GuiGetStyle(DROPDOWNBOX, BORDER_COLOR_PRESSED)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE_COLOR_PRESSED)));
+		GuiDrawText(items[i], GetTextBounds(DROPDOWNBOX, itemBounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT_COLOR_PRESSED)));
+            }
+            else if (i == itemFocused)
+            {
+		GuiDrawRectangleRounded(itemBounds, border_width, roundness, segments, GetColor(GuiGetStyle(DROPDOWNBOX, BORDER_COLOR_FOCUSED)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE_COLOR_FOCUSED)));
                 GuiDrawText(items[i], GetTextBounds(DROPDOWNBOX, itemBounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT_COLOR_FOCUSED)));
             }
             else GuiDrawText(items[i], GetTextBounds(DROPDOWNBOX, itemBounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT_COLOR_NORMAL)));
