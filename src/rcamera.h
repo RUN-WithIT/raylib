@@ -538,7 +538,6 @@ void UpdateCamera(Camera *camera, int mode)
   int ignore_gesture = ((CameraXtra *) camera)->ignore_gesture;
   int ignore_scroll = ((CameraXtra *) camera)->ignore_scroll;
   int ignore_rotate = ((CameraXtra *) camera)->ignore_rotate;
-  int ignore_pan = ((CameraXtra *) camera)->ignore_pan;
   int ignore_kbd = ((CameraXtra *) camera)->ignore_kbd;
 
   if (mode == CAMERA_ORBITAL)
@@ -559,6 +558,17 @@ void UpdateCamera(Camera *camera, int mode)
 	// mouse support
 	CameraYaw (camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
 	CameraPitch (camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
+      }
+      else if (!ignore_gesture && IsKeyDown (KEY_LEFT_CONTROL) && IsGestureDetected (GESTURE_DRAG))
+      {
+	float mwm = dragGestureDelta.y;
+	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
+	float move = CAMERA_PAN_SPEED * (distance / 16);
+
+	if (mwm > 0)
+	  CameraMoveUp (camera, move);
+	else if (mwm < 0)
+	  CameraMoveUp (camera, -move);
       }
       else if (!ignore_gesture && IsGestureDetected (GESTURE_DRAG))
       {
