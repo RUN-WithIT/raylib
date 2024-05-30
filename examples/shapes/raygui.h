@@ -3044,6 +3044,11 @@ int GuiTextBoxRounded(Rectangle bounds, int border_width, float roundness, int s
   bool multiline = false;     // TODO: Consider multiline text input
   int wrapMode = GuiGetStyle(DEFAULT, TEXT_WRAP_MODE);
 
+  Rectangle original_bounds = bounds;
+
+  bounds.x += bounds.height / 2;
+  bounds.width -= bounds.height;
+
   Rectangle textBounds = GetTextBounds(TEXTBOX, bounds);
   int textWidth = GetTextWidth(text) - GetTextWidth(text + textBoxCursorIndex);
   int textIndexOffset = 0;    // Text index offset to start drawing in the box
@@ -3286,13 +3291,19 @@ int GuiTextBoxRounded(Rectangle bounds, int border_width, float roundness, int s
   //--------------------------------------------------------------------
   if (state == STATE_PRESSED)
   {
-    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_PRESSED)));
+    GuiDrawRectangleRounded(original_bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_PRESSED)));
+    GuiDrawRectangleRounded(bounds, 0, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_PRESSED)));
   }
   else if (state == STATE_DISABLED)
   {
-    GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_DISABLED)));
+    GuiDrawRectangleRounded(original_bounds, border_width, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_DISABLED)));
+    GuiDrawRectangleRounded(bounds, 0, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_DISABLED)));
   }
-  else GuiDrawRectangleRounded(bounds, 1, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), BLANK);
+  else
+  {
+    GuiDrawRectangleRounded(original_bounds, 1, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), BLANK);
+    GuiDrawRectangleRounded(bounds, 0, roundness, segments, GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), BLANK);
+  }
 
   // Draw text considering index offset if required
   // NOTE: Text index offset depends on cursor position
