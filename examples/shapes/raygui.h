@@ -2698,9 +2698,11 @@ int GuiDropdownBoxRounded(Rectangle bounds, int border_width, float roundness, i
 
     // Draw control
     //--------------------------------------------------------------------
-    if (editMode) GuiPanelRounded (boundsOpen, 1, roundness, segments, NULL);
+    if (editMode)
+      GuiPanelRounded (boundsOpen, 1, roundness, segments, NULL);
+    else
+      GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(DROPDOWNBOX, BORDER + state*3)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE + state*3)));
 
-    //GuiDrawRectangleRounded(bounds, border_width, roundness, segments, GetColor(GuiGetStyle(DROPDOWNBOX, BORDER + state*3)), GetColor(GuiGetStyle(DROPDOWNBOX, BASE + state*3)));
     GuiDrawText(items[itemSelected], GetTextBounds(DROPDOWNBOX, bounds), GuiGetStyle(DROPDOWNBOX, TEXT_ALIGNMENT), GetColor(GuiGetStyle(DROPDOWNBOX, TEXT + state*3)));
 
     if (editMode)
