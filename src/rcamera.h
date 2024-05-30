@@ -649,6 +649,18 @@ void UpdateCamera(Camera *camera, int mode)
 	float move = CAMERA_PAN_SPEED * (distance / 16);
 	CameraMoveToTarget (camera, -move);
       }
+      else if (!ignore_kbd && IsKeyDown (KEY_Q))
+      {
+	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
+	float move = CAMERA_PAN_SPEED * (distance / 128);
+	CameraYaw (camera, move, rotateAroundTarget);
+      }
+      else if (!ignore_kbd && IsKeyDown (KEY_E))
+      {
+	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
+	float move = CAMERA_PAN_SPEED * (distance / 128);
+	CameraYaw (camera, -move, rotateAroundTarget);
+      }
     }
     else
     {
