@@ -573,7 +573,7 @@ void UpdateCamera(Camera *camera, int mode)
       else if (!ignore_gesture && IsGestureDetected (GESTURE_DRAG))
       {
 	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	float move = CAMERA_PAN_SPEED * (distance / 16);
+	float move = CAMERA_PAN_SPEED * (distance / 32);
 
 	switch (gesture_mode)
 	{
@@ -615,42 +615,38 @@ void UpdateCamera(Camera *camera, int mode)
       }
       else if (!ignore_kbd)
       {
+	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
+
 	// pan
 	if (IsKeyDown (KEY_W) || IsKeyDown (KEY_UP))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = CAMERA_PAN_SPEED * (distance / 16);
+	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveForward (camera, move, moveInWorldPlane);
 	}
 	else if (IsKeyDown (KEY_S) || IsKeyDown (KEY_DOWN))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = CAMERA_PAN_SPEED * (distance / 16);
+	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveForward (camera, -move, moveInWorldPlane);
 	}
 	else if (IsKeyDown (KEY_A) || IsKeyDown (KEY_LEFT))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = CAMERA_PAN_SPEED * (distance / 16);
+	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveRight (camera, -move, moveInWorldPlane);
 	}
 	else if (IsKeyDown (KEY_D) || IsKeyDown (KEY_RIGHT))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = CAMERA_PAN_SPEED * (distance / 16);
+	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveRight (camera, move, moveInWorldPlane);
 	}
 
 	// zoom
 	if (IsKeyDown (KEY_J))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
 	  float move = CAMERA_PAN_SPEED * (distance / 16);
 	  CameraMoveToTarget (camera, move);
 	}
 	else if (IsKeyDown (KEY_K))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
 	  float move = CAMERA_PAN_SPEED * (distance / 16);
 	  CameraMoveToTarget (camera, -move);
 	}
@@ -658,14 +654,12 @@ void UpdateCamera(Camera *camera, int mode)
 	// rotate
 	if (IsKeyDown (KEY_Q))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 128));
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraYaw (camera, move, rotateAroundTarget);
 	}
 	else if (IsKeyDown (KEY_E))
 	{
-	  float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
-	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 128));
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraYaw (camera, -move, rotateAroundTarget);
 	}
       }
