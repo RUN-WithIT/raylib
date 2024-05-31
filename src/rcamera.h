@@ -553,7 +553,7 @@ void UpdateCamera(Camera *camera, int mode)
     // Camera movement
     if (!IsGamepadAvailable(0))
     {
-      if (!ignore_rotate && IsKeyDown (KEY_LEFT_SHIFT))
+      if (!ignore_rotate && IsKeyDown (KEY_LEFT_SHIFT) && !(IsKeyDown (KEY_J) || IsKeyDown (KEY_K)))
       {
 	// mouse support
 	CameraYaw (camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
@@ -641,8 +641,18 @@ void UpdateCamera(Camera *camera, int mode)
 	  CameraMoveRight (camera, move, moveInWorldPlane);
 	}
 
-	// zoom
-	if (IsKeyDown (KEY_J))
+	// zoom, pitch
+	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_J))
+	{
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
+	  CameraPitch (camera, move, lockView, rotateAroundTarget, rotateUp);
+	}
+	else if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_K))
+	{
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
+	  CameraPitch (camera, -move, lockView, rotateAroundTarget, rotateUp);
+	}
+	else if (IsKeyDown (KEY_J))
 	{
 	  float move = CAMERA_PAN_SPEED * (distance / 16);
 	  CameraMoveToTarget (camera, move);
@@ -653,7 +663,7 @@ void UpdateCamera(Camera *camera, int mode)
 	  CameraMoveToTarget (camera, -move);
 	}
 
-	// rotate
+	// yaw
 	if (IsKeyDown (KEY_Q))
 	{
 	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
