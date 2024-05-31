@@ -628,7 +628,9 @@ void UpdateCamera(Camera *camera, int mode)
 	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveForward (camera, -move, moveInWorldPlane);
 	}
-	else if (IsKeyDown (KEY_A) || IsKeyDown (KEY_LEFT))
+
+	// pan
+	if (IsKeyDown (KEY_A) || IsKeyDown (KEY_LEFT))
 	{
 	  float move = CAMERA_PAN_SPEED * (distance / 32);
 	  CameraMoveRight (camera, -move, moveInWorldPlane);
