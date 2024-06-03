@@ -718,6 +718,7 @@ RAYGUIAPI int GuiLabelButton(Rectangle bounds, const char *text);               
 RAYGUIAPI int GuiToggle(Rectangle bounds, const char *text, bool *active);                             // Toggle Button control, returns true when active
 RAYGUIAPI int GuiToggleRounded(Rectangle bounds, int border_width, float roudness, int segment, const char *text, bool *active);
 RAYGUIAPI int GuiToggleGroup(Rectangle bounds, const char *text, int *active);                         // Toggle Group control, returns active toggle index
+RAYGUIAPI int GuiToggleGroupRounded(Rectangle bounds, int border_width, float roudness, int segment, const char *text, int *active);
 RAYGUIAPI int GuiToggleSlider(Rectangle bounds, const char *text, int *active);                        // Toggle Slider control, returns true when clicked
 RAYGUIAPI int GuiCheckBox(Rectangle bounds, const char *text, bool *checked);                          // Check Box control, returns true when active
 RAYGUIAPI int GuiCheckBoxRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text, bool *checked);
@@ -2237,6 +2238,55 @@ int GuiToggleGroup(Rectangle bounds, const char *text, int *active)
 
     return result;
 }
+
+int GuiToggleGroupRounded(Rectangle bounds, int border_width, float roundness, int segments, const char *text, int *active)
+{
+    #if !defined(RAYGUI_TOGGLEGROUP_MAX_ITEMS)
+        #define RAYGUI_TOGGLEGROUP_MAX_ITEMS    32
+    #endif
+
+    int result = 0;
+    float initBoundsX = bounds.x;
+
+    int temp = 0;
+    if (active == NULL) active = &temp;
+
+    bool toggle = false;    // Required for individual toggles
+
+    // Get substrings items from text (items pointers)
+    int rows[RAYGUI_TOGGLEGROUP_MAX_ITEMS] = { 0 };
+    int itemCount = 0;
+    const char **items = GuiTextSplit(text, ';', &itemCount, rows);
+
+    int prevRow = rows[0];
+
+    for (int i = 0; i < itemCount; i++)
+    {
+        if (prevRow != rows[i])
+        {
+            bounds.x = initBoundsX;
+            bounds.y += (bounds.height + GuiGetStyle(TOGGLE, GROUP_PADDING));
+            prevRow = rows[i];
+        }
+
+        if (i == (*active))
+        {
+            toggle = true;
+            GuiToggleRounded(bounds, border_width, roundness, segments, items[i], &toggle);
+        }
+        else
+        {
+            toggle = false;
+            GuiToggleRounded(bounds, border_width, roundness, segments, items[i], &toggle);
+            if (toggle) *active = i;
+        }
+
+        bounds.x += (bounds.width + GuiGetStyle(TOGGLE, GROUP_PADDING));
+    }
+
+    return result;
+}
+
 
 // Toggle Slider control extended, returns true when clicked
 int GuiToggleSlider(Rectangle bounds, const char *text, int *active)
