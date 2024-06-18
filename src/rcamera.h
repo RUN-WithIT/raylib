@@ -641,7 +641,7 @@ void UpdateCamera(Camera *camera, int mode)
 	  CameraMoveRight (camera, move, moveInWorldPlane);
 	}
 
-	// zoom, pitch
+	// zoom, vertical camera movement, and pitch
 	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_J))
 	{
 	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
@@ -651,6 +651,16 @@ void UpdateCamera(Camera *camera, int mode)
 	{
 	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraPitch (camera, -move, lockView, rotateAroundTarget, rotateUp);
+	}
+	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_J))
+	{
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 64));
+	  CameraMoveUp (camera, move);
+	}
+	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_K))
+	{
+	  float move = fmin (0.027, CAMERA_PAN_SPEED * (distance / 64));
+	  CameraMoveUp (camera, -move);
 	}
 	else if (IsKeyDown (KEY_J))
 	{
