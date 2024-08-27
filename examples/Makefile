@@ -545,6 +545,7 @@ MODELS = \
     models/models_yaw_pitch_roll
 
 SHADERS = \
+    shaders/line_width \
     shaders/shaders_basic_lighting \
     shaders/shaders_basic_pbr \
     shaders/shaders_light_anims \
@@ -605,10 +606,8 @@ CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 # Default target entry
 all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(PHYSICS) $(OTHERS)
 
-run:
-	rm -f others/cubes
-	make others/cubes
-	cd others ; ./cubes
+run:	shaders
+	cd shaders ; ./line_width
 
 debug:
 	rm -f others/cubes
