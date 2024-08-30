@@ -575,24 +575,21 @@ void UpdateCamera(Camera *camera, int mode)
 	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
 	float move = CAMERA_PAN_SPEED * (distance / 32);
 
+	Vector2 v = dragGestureDelta;
+	float vd = sqrtf (pow (v.x, 2) + pow (v.y, 2));
+	// unit vector
+	v.x /= vd;
+	v.y /= vd;
+
+	v.x *= move;
+	v.y *= move;
+
 	switch (gesture_mode)
 	{
 	case 0:
 	  // pan
-	  if (fabs (dragGestureDelta.x) >= fabs (dragGestureDelta.y))
-	    dragGestureDelta.y = 0;
-	  else
-	    dragGestureDelta.x = 0;
-
-	  if (dragGestureDelta.x > 0)
-	    CameraMoveRight (camera, -move, moveInWorldPlane);
-	  else if (dragGestureDelta.x < 0)
-	    CameraMoveRight (camera, move, moveInWorldPlane);
-	  else if (dragGestureDelta.y > 0)
-	    CameraMoveForward (camera, move, moveInWorldPlane);
-	  else if (dragGestureDelta.y < 0)
-	    CameraMoveForward (camera, -move, moveInWorldPlane);
-
+	  CameraMoveForward (camera, v.y, moveInWorldPlane);
+	  CameraMoveRight (camera, -v.x, moveInWorldPlane);
 	  break;
 
 	case 1:
