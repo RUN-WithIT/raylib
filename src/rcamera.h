@@ -577,6 +577,7 @@ void UpdateCamera(Camera *camera, int mode)
 
 	Vector2 v = dragGestureDelta;
 	float vd = sqrtf (pow (v.x, 2) + pow (v.y, 2));
+
 	// unit vector
 	v.x /= vd;
 	v.y /= vd;
@@ -584,16 +585,13 @@ void UpdateCamera(Camera *camera, int mode)
 	v.x *= move;
 	v.y *= move;
 
-	switch (gesture_mode)
+	if (IsMouseButtonDown (MOUSE_BUTTON_LEFT))
 	{
-	case 0:
-	  // pan
 	  CameraMoveForward (camera, v.y, moveInWorldPlane);
 	  CameraMoveRight (camera, -v.x, moveInWorldPlane);
-	  break;
-
-	case 1:
-	  // rotate
+	}
+	else if (IsMouseButtonDown (MOUSE_BUTTON_RIGHT))
+	{
 	  if (fabs (dragGestureDelta.x) > fabs (dragGestureDelta.y))
 	  {
 	    dragGestureDelta.y = 0;
@@ -606,8 +604,6 @@ void UpdateCamera(Camera *camera, int mode)
 	    CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
 	    CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 	  }
-
-	  break;
 	}
       }
       else if (!ignore_kbd)
