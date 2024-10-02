@@ -592,18 +592,9 @@ void UpdateCamera(Camera *camera, int mode)
 	}
 	else if (IsMouseButtonDown (MOUSE_BUTTON_RIGHT))
 	{
-	  if (fabs (dragGestureDelta.x) > fabs (dragGestureDelta.y))
-	  {
-	    dragGestureDelta.y = 0;
-	    CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	    CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	  }
-	  else
-	  {
-	    dragGestureDelta.x = 0;
-	    CameraYaw(camera, -dragGestureDelta.x*8*CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
-	    CameraPitch(camera, -dragGestureDelta.y*8*CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
-	  }
+	  // mouse support
+	  CameraYaw (camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
+	  CameraPitch (camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
 	}
       }
       else if (!ignore_kbd)
