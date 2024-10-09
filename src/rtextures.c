@@ -2827,6 +2827,27 @@ void ImageColorReplace(Image *image, Color color, Color replace)
 
     ImageFormat(image, format);
 }
+
+void
+ImageReplaceColorAtPosition (Image *image, int *v, Color *c, int count)
+{
+    // Security check to avoid program crash
+    if ((image->data == NULL) || (image->width == 0) || (image->height == 0))
+    return;
+
+    Color *pixels = LoadImageColors (*image);
+
+    for (int i = 0; i < count; i++)
+    pixels[v[i]] = c[i];
+
+    int format = image->format;
+    RL_FREE (image->data);
+
+    image->data = pixels;
+    image->format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+
+    ImageFormat (image, format);
+}
 #endif      // SUPPORT_IMAGE_MANIPULATION
 
 // Load color data from image as a Color array (RGBA - 32bit)

@@ -1368,6 +1368,7 @@ RLAPI void ImageColorGrayscale(Image *image);                                   
 RLAPI void ImageColorContrast(Image *image, float contrast);                                             // Modify image color: contrast (-100 to 100)
 RLAPI void ImageColorBrightness(Image *image, int brightness);                                           // Modify image color: brightness (-255 to 255)
 RLAPI void ImageColorReplace(Image *image, Color color, Color replace);                                  // Modify image color: replace color
+void ImageReplaceColorAtPosition (Image *image, int *v, Color *c, int count);
 RLAPI Color *LoadImageColors(Image image);                                                               // Load color data from image as a Color array (RGBA - 32bit)
 RLAPI Color *LoadImagePalette(Image image, int maxPaletteSize, int *colorCount);                         // Load colors palette from image as a Color array (RGBA - 32bit)
 RLAPI void UnloadImageColors(Color *colors);                                                             // Unload color data loaded with LoadImageColors()
