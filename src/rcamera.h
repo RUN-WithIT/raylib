@@ -559,7 +559,7 @@ void UpdateCamera(Camera *camera, int mode)
 	CameraYaw (camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, rotateAroundTarget);
 	CameraPitch (camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, lockView, rotateAroundTarget, rotateUp);
       }
-      else if (!ignore_gesture && IsKeyDown (KEY_LEFT_CONTROL) && IsGestureDetected (GESTURE_DRAG))
+      else if (!ignore_gesture && IsKeyDown (KEY_LEFT_ALT) && IsGestureDetected (GESTURE_DRAG))
       {
 	float mwm = dragGestureDelta.y;
 	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
@@ -574,6 +574,9 @@ void UpdateCamera(Camera *camera, int mode)
       {
 	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
 	float move = CAMERA_PAN_SPEED * (distance / 32);
+
+	if (IsKeyDown (KEY_LEFT_CONTROL))
+	  move *= 10;
 
 	Vector2 v = dragGestureDelta;
 	float vd = sqrtf (pow (v.x, 2) + pow (v.y, 2));
