@@ -646,12 +646,12 @@ void UpdateCamera(Camera *camera, int mode)
 	  float move = m * fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraPitch (camera, -move, lockView, rotateAroundTarget, rotateUp);
 	}
-	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_J))
+	else if (IsKeyDown (KEY_LEFT_ALT) && IsKeyDown (KEY_J))
 	{
 	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
 	  CameraMoveUp (camera, move);
 	}
-	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_K))
+	else if (IsKeyDown (KEY_LEFT_ALT) && IsKeyDown (KEY_K))
 	{
 	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
 	  CameraMoveUp (camera, -move);
