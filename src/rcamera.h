@@ -565,6 +565,9 @@ void UpdateCamera(Camera *camera, int mode)
 	float distance = Vector3Distance (camera->position, (Vector3) {camera->position.x, 0, camera->position.z });
 	float move = CAMERA_PAN_SPEED * (distance / 16);
 
+	if (IsKeyDown (KEY_LEFT_CONTROL))
+	  move *= 10;
+
 	if (mwm > 0)
 	  CameraMoveUp (camera, move);
 	else if (mwm < 0)
@@ -603,72 +606,76 @@ void UpdateCamera(Camera *camera, int mode)
       else if (!ignore_kbd)
       {
 	float distance = Vector3Distance (camera->position, (Vector3) { camera->position.x, 0, camera->position.z });
+	float m = 1;
+
+	if (IsKeyDown (KEY_LEFT_CONTROL))
+	  m = 10;
 
 	// pan
 	if (IsKeyDown (KEY_W) || IsKeyDown (KEY_UP))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
 	  CameraMoveForward (camera, move, moveInWorldPlane);
 	}
 	else if (IsKeyDown (KEY_S) || IsKeyDown (KEY_DOWN))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
 	  CameraMoveForward (camera, -move, moveInWorldPlane);
 	}
 
 	// pan
 	if (IsKeyDown (KEY_A) || IsKeyDown (KEY_LEFT))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
 	  CameraMoveRight (camera, -move, moveInWorldPlane);
 	}
 	else if (IsKeyDown (KEY_D) || IsKeyDown (KEY_RIGHT))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 32));
 	  CameraMoveRight (camera, move, moveInWorldPlane);
 	}
 
 	// zoom, vertical camera movement, and pitch
 	if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_J))
 	{
-	  float move = fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
+	  float move = m * fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraPitch (camera, move, lockView, rotateAroundTarget, rotateUp);
 	}
 	else if (IsKeyDown (KEY_LEFT_SHIFT) && IsKeyDown (KEY_K))
 	{
-	  float move = fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
+	  float move = m * fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraPitch (camera, -move, lockView, rotateAroundTarget, rotateUp);
 	}
 	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_J))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
 	  CameraMoveUp (camera, move);
 	}
 	else if (IsKeyDown (KEY_LEFT_CONTROL) && IsKeyDown (KEY_K))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 64));
 	  CameraMoveUp (camera, -move);
 	}
 	else if (IsKeyDown (KEY_J))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 16));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 16));
 	  CameraMoveToTarget (camera, move);
 	}
 	else if (IsKeyDown (KEY_K))
 	{
-	  float move = fmax (0.001, CAMERA_PAN_SPEED * (distance / 16));
+	  float move = m * fmax (0.001, CAMERA_PAN_SPEED * (distance / 16));
 	  CameraMoveToTarget (camera, -move);
 	}
 
 	// yaw
 	if (IsKeyDown (KEY_Q))
 	{
-	  float move = fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
+	  float move = m * fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraYaw (camera, move, rotateAroundTarget);
 	}
 	else if (IsKeyDown (KEY_E))
 	{
-	  float move = fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
+	  float move = m * fmax (0.004, CAMERA_PAN_SPEED * (distance / 256));
 	  CameraYaw (camera, -move, rotateAroundTarget);
 	}
       }
@@ -690,6 +697,9 @@ void UpdateCamera(Camera *camera, int mode)
   {
     // Zoom target distance
     float mwm = GetMouseWheelMove ();
+
+    if (IsKeyDown (KEY_LEFT_CONTROL))
+      mwm *= 10;
 
     if (!ignore_gesture && gesture_mode == 2 && IsGestureDetected (GESTURE_DRAG))
     {
